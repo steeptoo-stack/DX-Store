@@ -11,7 +11,7 @@ import {
   X, 
   Truck, 
   CheckCircle, 
-  Camera,
+  Tag,
   ChevronDown
 } from 'lucide-react';
 
@@ -32,16 +32,16 @@ export const Navbar: React.FC<NavbarProps> = ({
     categories, 
     activeView, 
     setActiveView, 
+    setSelectedCategory,
     isAdminAuthenticated 
   } = useStore();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
   const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
 
   const whatsappNumber = settings.contact.whatsapp || '01761861680';
   const cleanWhatsApp = whatsappNumber.replace(/[^0-9]/g, '');
   const waUrl = `https://wa.me/88${cleanWhatsApp.startsWith('88') ? cleanWhatsApp.slice(2) : cleanWhatsApp}?text=${encodeURIComponent(
-    'Hello DX Security! I want to consult regarding security camera systems.'
+    `Hello ${settings.store.name || 'DX Security'}! I have an inquiry regarding your products.`
   )}`;
 
   const handleNavClick = (view: string) => {
@@ -75,8 +75,8 @@ export const Navbar: React.FC<NavbarProps> = ({
                   BD
                 </span>
               </div>
-              <p className="text-[11px] text-slate-400 hidden sm:block tracking-wide">
-                Surveillance & Smart Security
+              <p className="text-[11px] text-slate-400 hidden sm:block tracking-wide truncate max-w-[200px]">
+                {settings.store.tagline || 'Multi-Category Online Store'}
               </p>
             </div>
           </div>
@@ -92,7 +92,10 @@ export const Navbar: React.FC<NavbarProps> = ({
               Home
             </button>
             <button
-              onClick={() => handleNavClick('shop')}
+              onClick={() => {
+                setSelectedCategory('ALL');
+                handleNavClick('shop');
+              }}
               className={`hover:text-cyan-400 transition-colors ${
                 activeView === 'shop' ? 'text-cyan-400 font-semibold' : ''
               }`}
@@ -112,18 +115,19 @@ export const Navbar: React.FC<NavbarProps> = ({
               </button>
 
               {categoryDropdownOpen && (
-                <div className="absolute left-0 mt-2 w-64 bg-slate-900 border border-slate-800 rounded-xl shadow-2xl p-2 z-50 animate-in fade-in zoom-in-95">
+                <div className="absolute left-0 mt-2 w-64 bg-slate-900 border border-slate-800 rounded-xl shadow-2xl p-2 z-50 animate-in fade-in zoom-in-95 max-h-80 overflow-y-auto">
                   {categories.filter(c => c.isEnabled).map(cat => (
                     <button
                       key={cat.id}
                       onClick={() => {
+                        setSelectedCategory(cat.name);
                         handleNavClick('shop');
                         setCategoryDropdownOpen(false);
                       }}
                       className="w-full text-left px-3 py-2 text-xs text-slate-300 hover:text-cyan-400 hover:bg-slate-800/60 rounded-lg transition-colors flex items-center justify-between"
                     >
-                      <span>{cat.name}</span>
-                      <Camera className="w-3.5 h-3.5 text-slate-500" />
+                      <span className="truncate">{cat.name}</span>
+                      <Tag className="w-3.5 h-3.5 text-slate-500 shrink-0" />
                     </button>
                   ))}
                 </div>

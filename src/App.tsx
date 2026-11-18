@@ -37,8 +37,11 @@ const MainApp: React.FC = () => {
     settings, 
     products, 
     categories, 
+    orders,
     activeView, 
     setActiveView, 
+    selectedCategory,
+    setSelectedCategory,
     isAdminAuthenticated,
     notification,
     addToCart
@@ -55,19 +58,54 @@ const MainApp: React.FC = () => {
   const [activePolicy, setActivePolicy] = useState<'privacy' | 'terms' | 'return' | 'delivery' | null>(null);
 
   // Shop filter state
-  const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<'featured' | 'price-asc' | 'price-desc'>('featured');
 
+  // Visible active products on storefront
+  const visibleProducts = products.filter(
+    p => p.isVisible && p.status !== 'inactive' && p.status !== 'draft'
+  );
+
+  // Dynamic category tabs: all enabled categories + any active product categories not disabled
+  const disabledCategoryNames = new Set(
+    categories.filter(c => !c.isEnabled).map(c => c.name.trim().toLowerCase())
+  );
+  const dynamicCategoryNames: string[] = [];
+  const seenCatNames = new Set<string>();
+
+  for (const cat of categories) {
+    if (cat.isEnabled) {
+      const key = cat.name.trim().toLowerCase();
+      if (!seenCatNames.has(key)) {
+        seenCatNames.add(key);
+        dynamicCategoryNames.push(cat.name);
+      }
+    }
+  }
+  for (const prod of visibleProducts) {
+    const catName = (prod.category || '').trim();
+    if (!catName) continue;
+    const key = catName.toLowerCase();
+    if (!seenCatNames.has(key) && !disabledCategoryNames.has(key)) {
+      seenCatNames.add(key);
+      dynamicCategoryNames.push(catName);
+    }
+  }
+
   // Filtered products list
-  const filteredProducts = products.filter(p => {
-    if (!p.isVisible) return false;
-    const matchCat = selectedCategory === 'ALL' || p.category === selectedCategory;
+  const filteredProducts = visibleProducts.filter(p => {
+    const matchCat =
+      selectedCategory === 'ALL' ||
+      p.category.trim().toLowerCase() === selectedCategory.trim().toLowerCase();
+    const q = searchQuery.trim().toLowerCase();
     const matchSearch =
-      p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.shortDescription.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.sku.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.category.toLowerCase().includes(searchQuery.toLowerCase());
+      !q ||
+      p.name.toLowerCase().includes(q) ||
+      (p.brand || '').toLowerCase().includes(q) ||
+      (p.shortDescription || '').toLowerCase().includes(q) ||
+      (p.description || '').toLowerCase().includes(q) ||
+      (p.sku || '').toLowerCase().includes(q) ||
+      p.category.toLowerCase().includes(q);
     return matchCat && matchSearch;
   }).sort((a, b) => {
     const priceA = a.discountPrice ?? a.price;
@@ -77,8 +115,8 @@ const MainApp: React.FC = () => {
     return (b.isFeatured ? 1 : 0) - (a.isFeatured ? 1 : 0);
   });
 
-  const featuredProducts = products.filter(p => p.isFeatured && p.isVisible);
-  const newArrivals = products.filter(p => p.isNewArrival && p.isVisible);
+  const featuredProducts = visibleProducts.filter(p => p.isFeatured);
+  const newArrivals = visibleProducts.filter(p => p.isNewArrival);
 
   // Direct checkout handler (Buy Now)
   const handleDirectCheckout = (product: Product, quantity = 1) => {
@@ -168,19 +206,19 @@ const MainApp: React.FC = () => {
                       : 'bg-slate-900 text-slate-300 hover:bg-slate-800 border border-slate-800'
                   }`}
                 >
-                  All Security Categories ({products.length})
+                  All Categories ({visibleProducts.length})
                 </button>
-                {categories.filter(c => c.isEnabled).map(cat => (
+                {dynamicCategoryNames.map(catName => (
                   <button
-                    key={cat.id}
-                    onClick={() => setSelectedCategory(cat.name)}
+                    key={catName}
+                    onClick={() => setSelectedCategory(catName)}
                     className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
-                      selectedCategory === cat.name
+                      selectedCategory.toLowerCase() === catName.toLowerCase()
                         ? 'bg-cyan-500 text-slate-950 shadow-md shadow-cyan-500/20'
                         : 'bg-slate-900 text-slate-300 hover:bg-slate-800 border border-slate-800'
                     }`}
                   >
-                    {cat.name}
+                    {catName}
                   </button>
                 ))}
               </div>
@@ -195,7 +233,7 @@ const MainApp: React.FC = () => {
                       Top Recommendations
                     </span>
                     <h2 className="text-2xl font-black text-white mt-1">
-                      Featured Security Systems
+                      Featured Products
                     </h2>
                   </div>
                   <button
@@ -228,10 +266,10 @@ const MainApp: React.FC = () => {
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800/80 pb-4">
                 <div>
                   <h2 className="text-2xl font-black text-white">
-                    Surveillance & Security Catalog
+                    Product Catalog
                   </h2>
                   <p className="text-xs text-slate-400 mt-0.5">
-                    Showing {filteredProducts.length} authentic security products with official warranty
+                    Showing {filteredProducts.length} products across all categories
                   </p>
                 </div>
 
@@ -243,7 +281,7 @@ const MainApp: React.FC = () => {
                       type="text"
                       value={searchQuery}
                       onChange={e => setSearchQuery(e.target.value)}
-                      placeholder="Search camera, NVR, brand..."
+                      placeholder="Search products, brand, category..."
                       className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
                     />
                   </div>
@@ -295,16 +333,16 @@ const MainApp: React.FC = () => {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">
             <div>
               <span className="text-xs font-mono font-bold uppercase tracking-widest text-cyan-400">
-                Official Equipment Inventory
+                Complete Store Inventory
               </span>
               <h1 className="text-3xl font-extrabold text-white mt-1">
-                All Surveillance Products
+                All Products
               </h1>
             </div>
 
             {/* Filter controls */}
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 p-4 rounded-2xl bg-slate-900 border border-slate-800">
-              <div className="flex items-center gap-2 overflow-x-auto">
+              <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
                 <button
                   onClick={() => setSelectedCategory('ALL')}
                   className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap ${
@@ -313,19 +351,19 @@ const MainApp: React.FC = () => {
                       : 'text-slate-400 hover:text-white'
                   }`}
                 >
-                  All ({products.length})
+                  All ({visibleProducts.length})
                 </button>
-                {categories.map(c => (
+                {dynamicCategoryNames.map(catName => (
                   <button
-                    key={c.id}
-                    onClick={() => setSelectedCategory(c.name)}
+                    key={catName}
+                    onClick={() => setSelectedCategory(catName)}
                     className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap ${
-                      selectedCategory === c.name
+                      selectedCategory.toLowerCase() === catName.toLowerCase()
                         ? 'bg-cyan-500 text-slate-950 font-bold'
                         : 'text-slate-400 hover:text-white'
                     }`}
                   >
-                    {c.name}
+                    {catName}
                   </button>
                 ))}
               </div>
@@ -337,7 +375,7 @@ const MainApp: React.FC = () => {
                     type="text"
                     value={searchQuery}
                     onChange={e => setSearchQuery(e.target.value)}
-                    placeholder="Search products..."
+                    placeholder="Search products, brand..."
                     className="pl-9 pr-3 py-1.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white placeholder-slate-500 focus:outline-none"
                   />
                 </div>
@@ -354,16 +392,32 @@ const MainApp: React.FC = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredProducts.map(prod => (
-                <ProductCard
-                  key={prod.id}
-                  product={prod}
-                  onOpenQuickView={p => setQuickViewProduct(p)}
-                  onDirectCheckout={p => handleDirectCheckout(p)}
-                />
-              ))}
-            </div>
+            {filteredProducts.length === 0 ? (
+              <div className="p-12 text-center bg-slate-900/60 rounded-3xl border border-slate-800 space-y-3">
+                <p className="text-base font-semibold text-slate-300">No products match your criteria</p>
+                <p className="text-xs text-slate-500">Try clearing the search or category filter.</p>
+                <button
+                  onClick={() => {
+                    setSelectedCategory('ALL');
+                    setSearchQuery('');
+                  }}
+                  className="px-4 py-2 rounded-xl bg-slate-800 text-cyan-400 text-xs font-semibold"
+                >
+                  Reset Filters
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredProducts.map(prod => (
+                  <ProductCard
+                    key={prod.id}
+                    product={prod}
+                    onOpenQuickView={p => setQuickViewProduct(p)}
+                    onDirectCheckout={p => handleDirectCheckout(p)}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -424,9 +478,10 @@ const MainApp: React.FC = () => {
             setIsTrackOrderOpen(true);
           }}
           onPrintInvoice={ordId => {
-            const ord = products ? undefined : undefined;
-            // Find order
-            // InvoiceModal can be triggered
+            const ord = orders.find(o => o.id === ordId);
+            if (ord) {
+              setSelectedInvoiceOrder(ord);
+            }
             setSuccessOrderId(null);
           }}
         />

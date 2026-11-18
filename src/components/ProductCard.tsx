@@ -28,12 +28,12 @@ export const ProductCard: React.FC<ProductCardProps> = ({
       {/* Product Image Area */}
       <div className="relative aspect-[4/3] bg-slate-950 overflow-hidden cursor-pointer" onClick={() => onOpenQuickView(product)}>
         <img
-          src={product.mainImage || (product.images && product.images[0]) || './placeholder-security.svg'}
+          src={product.mainImage || (product.images && product.images[0]) || './placeholder-product.svg'}
           alt={product.name}
           className="w-full h-full object-cover object-center group-hover:scale-108 transition-transform duration-500"
           loading="lazy"
           onError={(e) => {
-            (e.target as HTMLImageElement).src = './placeholder-security.svg';
+            (e.target as HTMLImageElement).src = './placeholder-product.svg';
           }}
         />
         <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent opacity-60 group-hover:opacity-40 transition-opacity" />
@@ -93,9 +93,18 @@ export const ProductCard: React.FC<ProductCardProps> = ({
       {/* Content Area */}
       <div className="p-4 sm:p-5 flex-1 flex flex-col justify-between space-y-3">
         <div>
-          <div className="flex items-center justify-between text-xs text-slate-400 mb-1">
-            <span className="text-cyan-400 font-medium truncate">{product.category}</span>
-            <span className="font-mono text-[10px] text-slate-500">{product.sku}</span>
+          <div className="flex items-center justify-between gap-2 text-xs text-slate-400 mb-1">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <span className="text-cyan-400 font-medium truncate">{product.category}</span>
+              {product.brand && (
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 font-medium shrink-0">
+                  {product.brand}
+                </span>
+              )}
+            </div>
+            {product.sku && (
+              <span className="font-mono text-[10px] text-slate-500 shrink-0">{product.sku}</span>
+            )}
           </div>
 
           <h3 
@@ -105,9 +114,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             {product.name}
           </h3>
 
-          <p className="text-xs text-slate-400 line-clamp-2 mt-1 leading-relaxed">
-            {product.shortDescription}
-          </p>
+          {(product.shortDescription || product.description) && (
+            <p className="text-xs text-slate-400 line-clamp-2 mt-1 leading-relaxed">
+              {product.shortDescription || product.description}
+            </p>
+          )}
         </div>
 
         {/* Pricing & Warranty */}

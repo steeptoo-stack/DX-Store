@@ -18,12 +18,14 @@ interface StoreContextType {
   adminUser: AdminUser | null;
   adminToken: string | null;
   activeView: string;
+  selectedCategory: string;
   selectedProductId: string | null;
   trackingOrderId: string | null;
   notification: { message: string; type: 'success' | 'error' | 'info' } | null;
   
   // Navigation & UI
   setActiveView: (view: string) => void;
+  setSelectedCategory: (category: string) => void;
   setSelectedProductId: (id: string | null) => void;
   setTrackingOrderId: (id: string | null) => void;
   showNotification: (message: string, type?: 'success' | 'error' | 'info') => void;
@@ -155,6 +157,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   });
 
   const [activeView, setActiveView] = useState<string>('home');
+  const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
   const [trackingOrderId, setTrackingOrderId] = useState<string | null>(null);
   const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
@@ -539,13 +542,73 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     showNotification('Settings successfully updated!', 'success');
   };
 
+  const slugify = (text: string) =>
+    text
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9\s-]/g, '')
+      .replace(/\s+/g, '-')
+      .replace(/-+/g, '-');
+
+  const ensureCategoryExists = async (categoryName?: string): Promise<string> => {
+    const trimmed = (categoryName || '').trim();
+    if (!trimmed) return 'Uncategorized';
+
+    const existing = categories.find(
+      c => c.name.trim().toLowerCase() === trimmed.toLowerCase()
+    );
+    if (existing) return existing.name;
+
+    const newCat: Category = {
+      id: `cat-${Date.now()}`,
+      name: trimmed,
+      slug: slugify(trimmed) || `cat-${Date.now()}`,
+      description: '',
+      image: '',
+      isEnabled: true
+    };
+
+    setCategories(prev => {
+      const already = prev.some(c => c.name.trim().toLowerCase() === trimmed.toLowerCase());
+      return already ? prev : [...prev, newCat];
+    });
+
+    try {
+      await fetch('/api/categories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newCat)
+      });
+    } catch (err) {}
+
+    return newCat.name;
+  };
+
   // Product Management
   const addProduct = async (productData: Omit<Product, 'id'>) => {
+    const resolvedCategory = await ensureCategoryExists(productData.category);
+    const status = productData.status || 'active';
+    const isVisible =
+      productData.isVisible !== undefined
+        ? productData.isVisible && status !== 'inactive' && status !== 'draft'
+        : status !== 'inactive' && status !== 'draft';
+
     const newProduct: Product = {
       ...productData,
       id: `prod-${Date.now()}`,
+      category: resolvedCategory,
+      brand: productData.brand?.trim() || undefined,
+      slug: productData.slug?.trim() || `${slugify(productData.name || 'product')}-${Date.now()}`,
+      sku: productData.sku?.trim() || `DX-${Math.floor(1000 + Math.random() * 9000)}`,
+      status,
+      isVisible,
       images: Array.isArray(productData.images) ? productData.images : [],
       mainImage: productData.mainImage || (productData.images && productData.images[0]) || '',
+      shortDescription: productData.shortDescription ?? '',
+      description: productData.description ?? '',
+      specifications: Array.isArray(productData.specifications) ? productData.specifications : [],
+      features: Array.isArray(productData.features) ? productData.features : [],
+      warranty: productData.warranty ?? '',
       createdAt: new Date().toISOString()
     };
 
@@ -562,15 +625,23 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const updateProduct = async (id: string, updatedFields: Partial<Product>) => {
+    const fieldsToSave: Partial<Product> = { ...updatedFields };
+    if (fieldsToSave.category !== undefined) {
+      fieldsToSave.category = await ensureCategoryExists(fieldsToSave.category);
+    }
+    if (fieldsToSave.brand !== undefined) {
+      fieldsToSave.brand = fieldsToSave.brand.trim() || undefined;
+    }
+
     setProducts(prev =>
-      prev.map(p => (p.id === id ? { ...p, ...updatedFields } : p))
+      prev.map(p => (p.id === id ? { ...p, ...fieldsToSave } : p))
     );
 
     try {
       await fetch(`/api/products/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updatedFields)
+        body: JSON.stringify(fieldsToSave)
       });
     } catch (err) {}
     showNotification('Product details updated', 'success');
@@ -615,8 +686,19 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // Category Management
   const addCategory = async (catData: Omit<Category, 'id'>) => {
+    const trimmedName = catData.name.trim();
+    const existing = categories.find(
+      c => c.name.trim().toLowerCase() === trimmedName.toLowerCase()
+    );
+    if (existing) {
+      showNotification(`Category "${existing.name}" already exists`, 'info');
+      return;
+    }
+
     const newCat: Category = {
       ...catData,
+      name: trimmedName,
+      slug: catData.slug?.trim() || slugify(trimmedName) || `cat-${Date.now()}`,
       id: `cat-${Date.now()}`
     };
 
@@ -633,22 +715,54 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const updateCategory = async (id: string, updatedFields: Partial<Category>) => {
+    const targetCategory = categories.find(c => c.id === id);
+    const oldName = targetCategory?.name;
+    const newName = updatedFields.name?.trim();
+    const cleanFields: Partial<Category> = {
+      ...updatedFields,
+      ...(newName ? { name: newName, slug: updatedFields.slug?.trim() || slugify(newName) } : {})
+    };
+
     setCategories(prev =>
-      prev.map(c => (c.id === id ? { ...c, ...updatedFields } : c))
+      prev.map(c => (c.id === id ? { ...c, ...cleanFields } : c))
     );
+
+    // Keep products linked if category name was edited
+    if (oldName && newName && oldName !== newName) {
+      const affectedProducts = products.filter(p => p.category === oldName);
+      setProducts(prev =>
+        prev.map(p => (p.category === oldName ? { ...p, category: newName } : p))
+      );
+      if (selectedCategory === oldName) {
+        setSelectedCategory(newName);
+      }
+      for (const prod of affectedProducts) {
+        try {
+          await fetch(`/api/products/${prod.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ category: newName })
+          });
+        } catch (err) {}
+      }
+    }
 
     try {
       await fetch(`/api/categories/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updatedFields)
+        body: JSON.stringify(cleanFields)
       });
     } catch (err) {}
     showNotification('Category updated', 'success');
   };
 
   const deleteCategory = async (id: string) => {
+    const target = categories.find(c => c.id === id);
     setCategories(prev => prev.filter(c => c.id !== id));
+    if (target && selectedCategory === target.name) {
+      setSelectedCategory('ALL');
+    }
 
     try {
       await fetch(`/api/categories/${id}`, {
@@ -707,7 +821,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         name: item.product.name,
         price: item.product.discountPrice ?? item.product.price,
         quantity: item.quantity,
-        image: item.product.mainImage || (item.product.images && item.product.images[0]) || './placeholder-security.svg',
+        image: item.product.mainImage || (item.product.images && item.product.images[0]) || './placeholder-product.svg',
         sku: item.product.sku
       })),
       subtotal: cartSubtotal,
@@ -887,10 +1001,12 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         adminUser,
         adminToken,
         activeView,
+        selectedCategory,
         selectedProductId,
         trackingOrderId,
         notification,
         setActiveView,
+        setSelectedCategory,
         setSelectedProductId,
         setTrackingOrderId,
         showNotification,

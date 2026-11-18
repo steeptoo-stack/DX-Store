@@ -29,6 +29,7 @@ export const ProductImageManager: React.FC<ProductImageManagerProps> = ({
   const [uploadProgress, setUploadProgress] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [replacingIndex, setReplacingIndex] = useState<number | null>(null);
+  const [imageUrlInput, setImageUrlInput] = useState('');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const replaceInputRef = useRef<HTMLInputElement>(null);
@@ -251,6 +252,42 @@ export const ProductImageManager: React.FC<ProductImageManagerProps> = ({
         </div>
       </div>
 
+      {/* Add Image by URL */}
+      <div className="flex items-center gap-2">
+        <input
+          type="url"
+          value={imageUrlInput}
+          onChange={e => setImageUrlInput(e.target.value)}
+          onKeyDown={e => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              const trimmed = imageUrlInput.trim();
+              if (!trimmed) return;
+              const updatedImages = [...images, trimmed];
+              const updatedMain = mainImage && images.includes(mainImage) ? mainImage : updatedImages[0];
+              onChange(updatedImages, updatedMain);
+              setImageUrlInput('');
+            }
+          }}
+          placeholder="Or paste image URL (https://...)"
+          className="flex-1 px-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-cyan-500 font-mono"
+        />
+        <button
+          type="button"
+          onClick={() => {
+            const trimmed = imageUrlInput.trim();
+            if (!trimmed) return;
+            const updatedImages = [...images, trimmed];
+            const updatedMain = mainImage && images.includes(mainImage) ? mainImage : updatedImages[0];
+            onChange(updatedImages, updatedMain);
+            setImageUrlInput('');
+          }}
+          className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-cyan-400 text-xs font-semibold border border-slate-700 transition-colors shrink-0"
+        >
+          Add URL
+        </button>
+      </div>
+
       {/* Error Message */}
       {errorMessage && (
         <div className="p-3 rounded-xl bg-red-950/60 border border-red-800 text-red-200 text-xs flex items-center justify-between">
@@ -294,7 +331,7 @@ export const ProductImageManager: React.FC<ProductImageManagerProps> = ({
                       alt={`Product thumbnail ${idx + 1}`} 
                       className="w-full h-full object-cover"
                       onError={(e) => {
-                        (e.target as HTMLImageElement).src = './placeholder-security.svg';
+                        (e.target as HTMLImageElement).src = './placeholder-product.svg';
                       }}
                     />
 

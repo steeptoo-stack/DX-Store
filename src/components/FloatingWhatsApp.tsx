@@ -8,7 +8,7 @@ export const FloatingWhatsApp: React.FC = () => {
   const cleanNumber = whatsappNumber.replace(/[^0-9]/g, '');
 
   const waUrl = `https://wa.me/88${cleanNumber.startsWith('88') ? cleanNumber.slice(2) : cleanNumber}?text=${encodeURIComponent(
-    'Hello DX Security! I need technical consultation on security cameras / CCTV packages.'
+    `Hello ${settings.store.name || 'DX Security'}! I have an inquiry about your products.`
   )}`;
 
   return (

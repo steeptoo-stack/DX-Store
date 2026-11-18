@@ -20,11 +20,11 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
   const displayPrice = product.discountPrice ?? product.price;
   const rawImages = (product.images && product.images.length > 0) 
     ? product.images 
-    : (product.mainImage ? [product.mainImage] : ['./placeholder-security.svg']);
-  const allImages = rawImages.length > 0 ? rawImages : ['./placeholder-security.svg'];
+    : (product.mainImage ? [product.mainImage] : ['./placeholder-product.svg']);
+  const allImages = rawImages.length > 0 ? rawImages : ['./placeholder-product.svg'];
 
   const [selectedImage, setSelectedImage] = useState(
-    product.mainImage || (product.images && product.images[0]) || './placeholder-security.svg'
+    product.mainImage || (product.images && product.images[0]) || './placeholder-product.svg'
   );
 
   const handleAdd = () => {
@@ -45,11 +45,18 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
       >
         {/* Header with close button */}
         <div className="flex items-center justify-between p-4 sm:p-6 border-b border-slate-800/80 bg-slate-950/50">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <span className="text-xs font-mono uppercase bg-cyan-950 border border-cyan-800/60 text-cyan-400 px-2.5 py-1 rounded-md">
               {product.category}
             </span>
-            <span className="text-xs text-slate-400 font-mono">SKU: {product.sku}</span>
+            {product.brand && (
+              <span className="text-xs font-semibold bg-slate-800 border border-slate-700 text-slate-200 px-2.5 py-1 rounded-md">
+                {product.brand}
+              </span>
+            )}
+            {product.sku && (
+              <span className="text-xs text-slate-400 font-mono">SKU: {product.sku}</span>
+            )}
           </div>
           <button
             onClick={onClose}
@@ -70,6 +77,9 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                   src={selectedImage}
                   alt={product.name}
                   className="w-full h-full object-cover object-center"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = './placeholder-product.svg';
+                  }}
                 />
               </div>
 
@@ -96,7 +106,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
               <div className="grid grid-cols-2 gap-2 pt-2 text-[11px] text-slate-300">
                 <div className="p-2.5 rounded-xl bg-slate-950/60 border border-slate-800/80 flex items-center gap-2">
                   <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
-                  <span>{product.warranty || "2 Years Official Warranty"}</span>
+                  <span>{product.warranty || "100% Authentic Product"}</span>
                 </div>
                 <div className="p-2.5 rounded-xl bg-slate-950/60 border border-slate-800/80 flex items-center gap-2">
                   <Truck className="w-4 h-4 text-cyan-400 shrink-0" />
@@ -136,7 +146,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                   </span>
                 ) : (
                   <span className="text-emerald-400 flex items-center gap-1 font-semibold">
-                    <CheckCircle2 className="w-4 h-4" /> Available in Stock ({product.stock} units ready in Dhaka warehouse)
+                    <CheckCircle2 className="w-4 h-4" /> Available in Stock ({product.stock} units available)
                   </span>
                 )}
               </div>
@@ -218,7 +228,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
           {product.specifications && product.specifications.length > 0 && (
             <div className="pt-6 border-t border-slate-800">
               <h3 className="text-sm font-bold uppercase tracking-wider text-cyan-400 mb-3">
-                Technical Specifications
+                Product Specifications
               </h3>
               <div className="rounded-xl border border-slate-800 overflow-hidden">
                 <table className="w-full text-left text-xs">

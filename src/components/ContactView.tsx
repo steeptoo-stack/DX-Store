@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useStore } from '../context/StoreContext';
-import { Phone, MessageCircle, Mail, MapPin, Clock, Send, ShieldCheck } from 'lucide-react';
+import { Phone, MessageCircle, Mail, MapPin, Clock, Send } from 'lucide-react';
 
 export const ContactView: React.FC = () => {
   const { settings, showNotification } = useStore();
@@ -42,9 +42,9 @@ Message: ${message}`;
         <span className="text-xs font-mono font-bold uppercase tracking-widest text-cyan-400 bg-cyan-950 px-3 py-1 rounded-full border border-cyan-800">
           Customer Support & Quotations
         </span>
-        <h1 className="text-3xl font-extrabold text-white">Contact DX Security</h1>
+        <h1 className="text-3xl font-extrabold text-white">Contact {settings.store.name || 'DX Security'}</h1>
         <p className="text-sm text-slate-300">
-          {settings.contact.supportMessage || 'Call or WhatsApp our technical surveillance desk for immediate quotation and consultation.'}
+          {settings.contact.supportMessage || 'Call or WhatsApp our support desk for product inquiries, order updates, and quotations.'}
         </p>
       </div>
 
@@ -63,7 +63,7 @@ Message: ${message}`;
                 <Phone className="w-5 h-5" />
               </div>
               <div>
-                <p className="text-xs text-slate-400">Technical Hotline</p>
+                <p className="text-xs text-slate-400">Customer Hotline</p>
                 <a href={`tel:${hotline}`} className="text-sm font-bold font-mono text-white hover:text-cyan-400">
                   {hotline}
                 </a>
@@ -132,9 +132,9 @@ Message: ${message}`;
         <div className="lg:col-span-7">
           <form onSubmit={handleSubmit} className="p-6 sm:p-8 rounded-3xl bg-slate-900 border border-slate-800 space-y-4">
             <div>
-              <h3 className="font-bold text-white text-base">Request Security Consultation</h3>
+              <h3 className="font-bold text-white text-base">Send a Product Inquiry</h3>
               <p className="text-xs text-slate-400 mt-0.5">
-                Have questions about camera resolution, storage calculations, or installation? Send us a message!
+                Have questions about product specifications, availability, bulk pricing, or delivery? Send us a message!
               </p>
             </div>
 
@@ -169,13 +169,13 @@ Message: ${message}`;
 
               <div>
                 <label className="block text-xs font-semibold text-slate-300 mb-1">
-                  Inquiry / Security Requirements <span className="text-red-400">*</span>
+                  Inquiry / Product Requirements <span className="text-red-400">*</span>
                 </label>
                 <textarea
                   rows={4}
                   value={message}
                   onChange={e => setMessage(e.target.value)}
-                  placeholder="Tell us what you want to protect (e.g. 4 cameras for 3-story home, factory warehouse, office attendance...)"
+                  placeholder="Tell us what you are looking for (e.g. product inquiry, specifications, bulk order, or delivery details...)"
                   className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:ring-1 focus:ring-cyan-500"
                   required
                 />

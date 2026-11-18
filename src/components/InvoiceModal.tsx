@@ -221,8 +221,8 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({ order, onClose }) =>
           {/* Footer note & Stamp */}
           <div className="pt-8 border-t border-slate-800 print:border-slate-300 flex flex-col sm:flex-row justify-between items-end gap-6 text-xs text-slate-400 print:text-slate-600">
             <div className="space-y-1">
-              <p className="font-semibold text-slate-300 print:text-slate-800">Terms & Warranty Support:</p>
-              <p>• Official 2-Year Replacement Warranty on all surveillance hardware with original serial barcode.</p>
+              <p className="font-semibold text-slate-300 print:text-slate-800">Terms & Support:</p>
+              <p>• Please retain this invoice for warranty, replacement, and support inquiries.</p>
               <p>• Helpline & Technical Support: {settings.contact.phone || '01761861680'}</p>
             </div>
 

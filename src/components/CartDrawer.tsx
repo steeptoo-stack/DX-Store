@@ -78,14 +78,14 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                 <div>
                   <p className="text-base font-semibold text-slate-200">Your cart is empty</p>
                   <p className="text-xs text-slate-400 mt-1">
-                    Select surveillance cameras, NVRs, or security accessories to get started.
+                    Browse our catalog and add products to your cart to get started.
                   </p>
                 </div>
                 <button
                   onClick={onClose}
                   className="px-6 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-bold transition-all"
                 >
-                  Browse Security Products
+                  Browse Products
                 </button>
               </div>
             ) : (
@@ -97,11 +97,11 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                     className="p-3 bg-slate-950/70 border border-slate-800 rounded-2xl flex items-center gap-3"
                   >
                     <img
-                      src={product.mainImage || (product.images && product.images[0]) || './placeholder-security.svg'}
+                      src={product.mainImage || (product.images && product.images[0]) || './placeholder-product.svg'}
                       alt={product.name}
                       className="w-16 h-16 object-cover rounded-xl border border-slate-800 shrink-0"
                       onError={(e) => {
-                        (e.target as HTMLImageElement).src = './placeholder-security.svg';
+                        (e.target as HTMLImageElement).src = './placeholder-product.svg';
                       }}
                     />
 

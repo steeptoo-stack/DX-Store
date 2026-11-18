@@ -68,7 +68,7 @@ Please confirm and arrange dispatch!`;
             Thank you, {order.customerName}!
           </h2>
           <p className="text-sm text-slate-300 mt-1">
-            Your security system order is received and queued for dispatch.
+            Your order has been received and queued for dispatch.
           </p>
         </div>
 
@@ -180,7 +180,7 @@ Please confirm and arrange dispatch!`;
             onClick={onClose}
             className="text-xs text-slate-400 hover:text-cyan-400 transition-colors underline"
           >
-            Return to Store & Browse Equipment
+            Return to Store & Continue Shopping
           </button>
         </div>
 

@@ -1,6 +1,6 @@
 import React from 'react';
 import { useStore } from '../context/StoreContext';
-import { ShieldCheck, Target, Eye, CheckCircle2, Award, Users, PhoneCall } from 'lucide-react';
+import { Target, Eye, CheckCircle2 } from 'lucide-react';
 
 export const AboutView: React.FC = () => {
   const { settings, setActiveView } = useStore();
@@ -11,7 +11,7 @@ export const AboutView: React.FC = () => {
       {/* Hero section */}
       <div className="text-center space-y-4 max-w-3xl mx-auto">
         <span className="text-xs font-mono font-bold uppercase tracking-widest text-cyan-400 bg-cyan-950 px-3 py-1 rounded-full border border-cyan-800">
-          About DX Security Bangladesh
+          About {settings.store.name || 'DX Security Bangladesh'}
         </span>
         <h1 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
           {ab.title}
@@ -42,7 +42,7 @@ export const AboutView: React.FC = () => {
 
       {/* Company Info Box */}
       <div className="p-8 rounded-3xl bg-gradient-to-r from-slate-900 to-slate-950 border border-slate-800 space-y-4">
-        <h2 className="text-xl font-bold text-white">Surveillance Reliability & Engineering</h2>
+        <h2 className="text-xl font-bold text-white">Quality, Reliability & Customer Trust</h2>
         <p className="text-sm text-slate-300 leading-relaxed">{ab.companyInfo}</p>
       </div>
 
@@ -69,7 +69,7 @@ export const AboutView: React.FC = () => {
           onClick={() => setActiveView('shop')}
           className="px-8 py-3.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-sm tracking-wide shadow-lg shadow-cyan-500/20 transition-all cursor-pointer"
         >
-          Browse Surveillance Catalog
+          Browse Product Catalog
         </button>
       </div>
     </div>

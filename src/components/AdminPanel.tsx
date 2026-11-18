@@ -85,10 +85,15 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onOpenInvoice }) => {
   const [orderPaymentFilter, setOrderPaymentFilter] = useState<string>('ALL');
   const [selectedOrderDetails, setSelectedOrderDetails] = useState<Order | null>(null);
 
-  // --- PRODUCT FORM MODAL ---
+  // --- PRODUCT FORM MODAL & FILTERS ---
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
   const [productForm, setProductForm] = useState<Partial<Product>>({});
+  const [productSearch, setProductSearch] = useState('');
+  const [productCategoryFilter, setProductCategoryFilter] = useState('ALL');
+  const [newFeatureInput, setNewFeatureInput] = useState('');
+  const [newSpecLabel, setNewSpecLabel] = useState('');
+  const [newSpecValue, setNewSpecValue] = useState('');
 
   // --- CATEGORY FORM MODAL ---
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
@@ -162,6 +167,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onOpenInvoice }) => {
 
   // Open product editor
   const handleOpenProductModal = (prod?: Product) => {
+    setNewFeatureInput('');
+    setNewSpecLabel('');
+    setNewSpecValue('');
+
     if (prod) {
       setEditingProduct(prod);
       const existingImages = Array.isArray(prod.images) && prod.images.length > 0
@@ -172,34 +181,34 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onOpenInvoice }) => {
 
       setProductForm({ 
         ...prod,
+        brand: prod.brand || '',
         images: existingImages,
-        mainImage: prod.mainImage || existingImages[0] || ''
+        mainImage: prod.mainImage || existingImages[0] || '',
+        specifications: Array.isArray(prod.specifications) ? [...prod.specifications] : [],
+        features: Array.isArray(prod.features) ? [...prod.features] : []
       });
     } else {
       setEditingProduct(null);
       setProductForm({
         name: '',
         slug: '',
-        category: categories[0]?.name || 'IP Surveillance Cameras',
-        price: 5000,
+        category: categories[0]?.name || '',
+        brand: '',
+        price: undefined,
         discountPrice: null,
-        stock: 20,
-        sku: `DXS-${Math.floor(100 + Math.random() * 900)}`,
+        stock: 10,
+        sku: `DX-${Math.floor(1000 + Math.random() * 9000)}`,
         images: [],
         mainImage: '',
         status: 'active',
-        isFeatured: true,
+        isFeatured: false,
         isNewArrival: false,
         isVisible: true,
-        shortDescription: 'High resolution security camera with infrared night vision and remote mobile streaming.',
-        description: 'Professional grade surveillance camera designed for 24/7 reliability in indoor and outdoor settings across Bangladesh.',
-        specifications: [
-          { label: 'Resolution', value: '4MP (2560 × 1440)' },
-          { label: 'Night Vision', value: '30m Smart IR' },
-          { label: 'Housing', value: 'IP67 Weatherproof Metal' }
-        ],
-        features: ['Full HD Crystal Clear Video', 'Mobile Remote View via Free App', 'POE Single Cable Setup'],
-        warranty: '2 Years Official Warranty'
+        shortDescription: '',
+        description: '',
+        specifications: [],
+        features: [],
+        warranty: ''
       });
     }
     setIsProductModalOpen(true);
@@ -207,16 +216,44 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onOpenInvoice }) => {
 
   const handleSaveProduct = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!productForm.name || !productForm.price) {
-      showNotification('Product name and price are required', 'error');
+    if (!productForm.name?.trim()) {
+      showNotification('Product name is required', 'error');
+      return;
+    }
+    if (!productForm.category?.trim()) {
+      showNotification('Product category is required', 'error');
+      return;
+    }
+    if (productForm.price === undefined || productForm.price === null || Number(productForm.price) <= 0) {
+      showNotification('Please enter a valid product price greater than 0', 'error');
+      return;
+    }
+    if (productForm.stock === undefined || productForm.stock === null || Number(productForm.stock) < 0) {
+      showNotification('Stock quantity cannot be negative', 'error');
       return;
     }
 
     const currentImages = Array.isArray(productForm.images) ? productForm.images : [];
     const currentMain = productForm.mainImage || currentImages[0] || '';
+    const status = productForm.status || 'active';
+    const isVisible =
+      status === 'inactive' || status === 'draft'
+        ? false
+        : productForm.isVisible ?? true;
 
     const payload = {
       ...productForm,
+      name: productForm.name.trim(),
+      category: productForm.category.trim(),
+      brand: productForm.brand?.trim() || '',
+      price: Number(productForm.price),
+      discountPrice:
+        productForm.discountPrice && Number(productForm.discountPrice) > 0
+          ? Number(productForm.discountPrice)
+          : null,
+      stock: Number(productForm.stock),
+      status,
+      isVisible,
       images: currentImages,
       mainImage: currentMain
     };
@@ -240,7 +277,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onOpenInvoice }) => {
         name: '',
         slug: '',
         description: '',
-        image: 'https://images.unsplash.com/photo-1557597774-9d273605dfa9?auto=format&fit=crop&w=600&q=80',
+        image: '',
         isEnabled: true
       });
     }
@@ -249,7 +286,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onOpenInvoice }) => {
 
   const handleSaveCategory = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!categoryForm.name) {
+    if (!categoryForm.name?.trim()) {
       showNotification('Category name is required', 'error');
       return;
     }
@@ -899,7 +936,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onOpenInvoice }) => {
               <div>
                 <h1 className="text-2xl font-black text-white">Product Catalog Management</h1>
                 <p className="text-xs text-slate-400">
-                  Add, update, duplicate, and adjust prices/stock without touching code
+                  Add, edit, and manage products of any category without touching code
                 </p>
               </div>
 
@@ -908,8 +945,40 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onOpenInvoice }) => {
                 className="px-4 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-bold transition-all flex items-center gap-2 shadow-lg shadow-cyan-500/20"
               >
                 <Plus className="w-4 h-4" />
-                <span>Add New Security Product</span>
+                <span>Add New Product</span>
               </button>
+            </div>
+
+            {/* Admin Product Search & Category Filter */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="relative">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                <input
+                  type="text"
+                  value={productSearch}
+                  onChange={e => setProductSearch(e.target.value)}
+                  placeholder="Search products by name, brand, category, or SKU..."
+                  className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
+                />
+              </div>
+
+              <select
+                value={productCategoryFilter}
+                onChange={e => setProductCategoryFilter(e.target.value)}
+                className="w-full px-3 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-xs text-white focus:outline-none"
+              >
+                <option value="ALL">All Categories ({products.length})</option>
+                {Array.from(
+                  new Set([
+                    ...categories.map(c => c.name),
+                    ...products.map(p => p.category).filter(Boolean)
+                  ])
+                ).map(catName => (
+                  <option key={catName} value={catName}>
+                    {catName}
+                  </option>
+                ))}
+              </select>
             </div>
 
             {/* Products Grid / Table */}
@@ -929,21 +998,40 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onOpenInvoice }) => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-800">
-                    {products.map(prod => (
+                    {products
+                      .filter(prod => {
+                        const matchCat =
+                          productCategoryFilter === 'ALL' ||
+                          prod.category.toLowerCase() === productCategoryFilter.toLowerCase();
+                        const q = productSearch.trim().toLowerCase();
+                        const matchQuery =
+                          !q ||
+                          prod.name.toLowerCase().includes(q) ||
+                          (prod.brand || '').toLowerCase().includes(q) ||
+                          prod.category.toLowerCase().includes(q) ||
+                          (prod.sku || '').toLowerCase().includes(q);
+                        return matchCat && matchQuery;
+                      })
+                      .map(prod => (
                       <tr key={prod.id} className="hover:bg-slate-800/40">
                         <td className="py-3 px-4">
                           <div className="flex items-center gap-3">
                             <img
-                              src={prod.mainImage || (prod.images && prod.images[0]) || './placeholder-security.svg'}
+                              src={prod.mainImage || (prod.images && prod.images[0]) || './placeholder-product.svg'}
                               alt={prod.name}
                               className="w-10 h-10 object-cover rounded-lg border border-slate-800 shrink-0"
                               onError={(e) => {
-                                (e.target as HTMLImageElement).src = './placeholder-security.svg';
+                                (e.target as HTMLImageElement).src = './placeholder-product.svg';
                               }}
                             />
                             <div className="min-w-0">
                               <p className="font-semibold text-white truncate max-w-xs">{prod.name}</p>
-                              <div className="flex items-center gap-1.5 mt-0.5">
+                              <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                                {prod.brand && (
+                                  <span className="text-[10px] bg-slate-800 text-slate-300 px-1.5 py-0.2 rounded">
+                                    {prod.brand}
+                                  </span>
+                                )}
                                 {prod.isFeatured && (
                                   <span className="text-[9px] bg-amber-950 text-amber-400 px-1.5 py-0.2 rounded">Featured</span>
                                 )}
@@ -975,16 +1063,22 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onOpenInvoice }) => {
                         </td>
 
                         <td className="py-3 px-4">
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
-                            prod.status === 'active'
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-semibold capitalize ${
+                            prod.status === 'active' && prod.isVisible
                               ? 'bg-emerald-950 text-emerald-400 border border-emerald-800'
-                              : 'bg-slate-800 text-slate-400'
+                              : prod.status === 'out_of_stock'
+                              ? 'bg-amber-950 text-amber-400 border border-amber-800'
+                              : 'bg-slate-800 text-slate-400 border border-slate-700'
                           }`}>
-                            {prod.status}
+                            {prod.status === 'inactive' || !prod.isVisible
+                              ? 'Inactive'
+                              : prod.status === 'out_of_stock'
+                              ? 'Out of Stock'
+                              : prod.status}
                           </span>
                         </td>
 
-                        <td className="py-3 px-4 text-right space-x-1">
+                        <td className="py-3 px-4 text-right space-x-1 whitespace-nowrap">
                           <button
                             onClick={() => handleOpenProductModal(prod)}
                             className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 transition-colors"
@@ -1029,7 +1123,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onOpenInvoice }) => {
               <div>
                 <h1 className="text-2xl font-black text-white">Categories Management</h1>
                 <p className="text-xs text-slate-400">
-                  Organize security hardware categories, banner images, and display visibility
+                  Create, edit, and manage custom product categories and display visibility
                 </p>
               </div>
 
@@ -1043,22 +1137,39 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onOpenInvoice }) => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {categories.map(cat => (
+              {categories.map(cat => {
+                const count = products.filter(
+                  p => p.category.trim().toLowerCase() === cat.name.trim().toLowerCase()
+                ).length;
+
+                return (
                 <div key={cat.id} className="p-4 rounded-2xl bg-slate-900 border border-slate-800 space-y-3">
                   <div className="aspect-[2/1] rounded-xl overflow-hidden bg-slate-950 border border-slate-800">
-                    <img src={cat.image} alt={cat.name} className="w-full h-full object-cover" />
+                    <img
+                      src={cat.image || './placeholder-product.svg'}
+                      alt={cat.name}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = './placeholder-product.svg';
+                      }}
+                    />
                   </div>
 
                   <div>
-                    <div className="flex items-center justify-between">
-                      <h3 className="font-bold text-white text-sm">{cat.name}</h3>
-                      <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${
+                    <div className="flex items-center justify-between gap-2">
+                      <h3 className="font-bold text-white text-sm truncate">{cat.name}</h3>
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-semibold shrink-0 ${
                         cat.isEnabled ? 'bg-emerald-950 text-emerald-400' : 'bg-slate-800 text-slate-400'
                       }`}>
                         {cat.isEnabled ? 'Active' : 'Disabled'}
                       </span>
                     </div>
-                    <p className="text-xs text-slate-400 mt-1 line-clamp-2">{cat.description}</p>
+                    <p className="text-[11px] text-cyan-400 font-mono mt-0.5">
+                      {count} {count === 1 ? 'product' : 'products'}
+                    </p>
+                    {cat.description && (
+                      <p className="text-xs text-slate-400 mt-1 line-clamp-2">{cat.description}</p>
+                    )}
                   </div>
 
                   <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-800">
@@ -1070,7 +1181,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onOpenInvoice }) => {
                     </button>
                     <button
                       onClick={() => {
-                        if (confirm(`Delete category ${cat.name}?`)) {
+                        if (confirm(`Delete category ${cat.name}? Existing products will remain preserved.`)) {
                           deleteCategory(cat.id);
                         }
                       }}
@@ -1080,7 +1191,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onOpenInvoice }) => {
                     </button>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}
@@ -2219,7 +2331,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onOpenInvoice }) => {
           <div className="relative w-full max-w-3xl bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
             <div className="flex items-center justify-between p-4 sm:p-6 border-b border-slate-800 bg-slate-950/70">
               <h2 className="text-base font-bold text-white">
-                {editingProduct ? 'Edit Product Details' : 'Add New Security Product'}
+                {editingProduct ? 'Edit Product Details' : 'Add New Product'}
               </h2>
               <button
                 onClick={() => setIsProductModalOpen(false)}
@@ -2230,16 +2342,77 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onOpenInvoice }) => {
             </div>
 
             <form onSubmit={handleSaveProduct} className="p-4 sm:p-6 overflow-y-auto space-y-4 flex-1">
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">
-                  Product Name <span className="text-red-400">*</span>
-                </label>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    Product Name <span className="text-red-400">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={productForm.name || ''}
+                    onChange={e => setProductForm({ ...productForm, name: e.target.value })}
+                    placeholder="e.g. Samsung Galaxy S24, HP Laptop, Leather Jacket, IP Camera..."
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    Brand <span className="text-slate-500">(Optional)</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={productForm.brand || ''}
+                    onChange={e => setProductForm({ ...productForm, brand: e.target.value })}
+                    placeholder="e.g. Apple, Nike, Sony..."
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
+                  />
+                </div>
+              </div>
+
+              {/* Flexible Category Input + Quick Select */}
+              <div className="p-3.5 rounded-2xl bg-slate-950/60 border border-slate-800 space-y-2.5">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <label className="block text-xs font-semibold text-slate-300">
+                    Product Category <span className="text-red-400">*</span>
+                    <span className="text-[11px] font-normal text-slate-400 ml-1.5">
+                      (Select existing or type any new category)
+                    </span>
+                  </label>
+
+                  {categories.length > 0 && (
+                    <select
+                      value={
+                        categories.some(
+                          c => c.name.toLowerCase() === (productForm.category || '').trim().toLowerCase()
+                        )
+                          ? categories.find(
+                              c => c.name.toLowerCase() === (productForm.category || '').trim().toLowerCase()
+                            )?.name
+                          : '__CUSTOM__'
+                      }
+                      onChange={e => {
+                        if (e.target.value !== '__CUSTOM__') {
+                          setProductForm({ ...productForm, category: e.target.value });
+                        }
+                      }}
+                      className="px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-xs text-cyan-300 focus:outline-none"
+                    >
+                      <option value="__CUSTOM__">-- Write Custom Category --</option>
+                      {categories.map(c => (
+                        <option key={c.id} value={c.name}>{c.name}</option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+
                 <input
                   type="text"
-                  value={productForm.name || ''}
-                  onChange={e => setProductForm({ ...productForm, name: e.target.value })}
-                  placeholder="e.g. Hikvision 4MP ColorVu Bullet IP Camera"
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-sm text-white focus:outline-none"
+                  value={productForm.category || ''}
+                  onChange={e => setProductForm({ ...productForm, category: e.target.value })}
+                  placeholder="Type any category (e.g. Mobile Phones, Laptops, Fashion, Home Appliances...)"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
                   required
                 />
               </div>
@@ -2247,42 +2420,59 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onOpenInvoice }) => {
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-slate-300 mb-1">
-                    Category <span className="text-red-400">*</span>
-                  </label>
-                  <select
-                    value={productForm.category || categories[0]?.name}
-                    onChange={e => setProductForm({ ...productForm, category: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none"
-                  >
-                    {categories.map(c => (
-                      <option key={c.id} value={c.name}>{c.name}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">
                     Regular Price ({currency}) <span className="text-red-400">*</span>
                   </label>
                   <input
                     type="number"
-                    value={productForm.price || ''}
-                    onChange={e => setProductForm({ ...productForm, price: Number(e.target.value) })}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs font-mono text-white focus:outline-none"
+                    min={1}
+                    value={productForm.price ?? ''}
+                    onChange={e =>
+                      setProductForm({
+                        ...productForm,
+                        price: e.target.value ? Number(e.target.value) : undefined
+                      })
+                    }
+                    placeholder="e.g. 2500"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs font-mono text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
                     required
                   />
                 </div>
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-300 mb-1">
-                    Discount Price ({currency})
+                    Discount Price ({currency}) <span className="text-slate-500">(Optional)</span>
                   </label>
                   <input
                     type="number"
-                    value={productForm.discountPrice || ''}
-                    onChange={e => setProductForm({ ...productForm, discountPrice: e.target.value ? Number(e.target.value) : null })}
+                    min={0}
+                    value={productForm.discountPrice ?? ''}
+                    onChange={e =>
+                      setProductForm({
+                        ...productForm,
+                        discountPrice: e.target.value ? Number(e.target.value) : null
+                      })
+                    }
                     placeholder="Leave empty if no discount"
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs font-mono text-white focus:outline-none"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs font-mono text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    Stock / Quantity <span className="text-red-400">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    value={productForm.stock ?? 10}
+                    onChange={e =>
+                      setProductForm({
+                        ...productForm,
+                        stock: e.target.value === '' ? 0 : Number(e.target.value)
+                      })
+                    }
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs font-mono text-white focus:outline-none focus:ring-1 focus:ring-cyan-500"
+                    required
                   />
                 </div>
               </div>
@@ -2290,38 +2480,49 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onOpenInvoice }) => {
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <label className="block text-xs font-semibold text-slate-300 mb-1">
-                    Stock Units <span className="text-red-400">*</span>
+                    Product Status <span className="text-red-400">*</span>
                   </label>
-                  <input
-                    type="number"
-                    value={productForm.stock ?? 10}
-                    onChange={e => setProductForm({ ...productForm, stock: Number(e.target.value) })}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs font-mono text-white focus:outline-none"
-                    required
-                  />
+                  <select
+                    value={productForm.status || 'active'}
+                    onChange={e => {
+                      const nextStatus = e.target.value as Product['status'];
+                      setProductForm({
+                        ...productForm,
+                        status: nextStatus,
+                        isVisible: nextStatus !== 'inactive' && nextStatus !== 'draft'
+                      });
+                    }}
+                    className="w-full px-3 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:ring-1 focus:ring-cyan-500"
+                  >
+                    <option value="active">Active (Visible in Store)</option>
+                    <option value="inactive">Inactive (Hidden)</option>
+                    <option value="out_of_stock">Out of Stock</option>
+                  </select>
                 </div>
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-300 mb-1">
-                    SKU Code
+                    SKU Code <span className="text-slate-500">(Optional)</span>
                   </label>
                   <input
                     type="text"
                     value={productForm.sku || ''}
                     onChange={e => setProductForm({ ...productForm, sku: e.target.value })}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs font-mono text-white focus:outline-none"
+                    placeholder="e.g. DX-1042"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs font-mono text-white placeholder-slate-500 focus:outline-none"
                   />
                 </div>
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-300 mb-1">
-                    Warranty Statement
+                    Warranty <span className="text-slate-500">(Optional)</span>
                   </label>
                   <input
                     type="text"
-                    value={productForm.warranty || '2 Years Official Warranty'}
+                    value={productForm.warranty || ''}
                     onChange={e => setProductForm({ ...productForm, warranty: e.target.value })}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none"
+                    placeholder="e.g. 1 Year Warranty (optional)"
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white placeholder-slate-500 focus:outline-none"
                   />
                 </div>
               </div>
@@ -2329,7 +2530,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onOpenInvoice }) => {
               {/* Product Images Management */}
               <div>
                 <label className="block text-xs font-semibold text-slate-300 mb-1">
-                  Product Images & Gallery (Upload from device, preview, set main, remove, reorder)
+                  Product Images & Gallery (Upload from device or paste URL)
                 </label>
                 <ProductImageManager
                   images={productForm.images || []}
@@ -2348,27 +2549,175 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onOpenInvoice }) => {
               {/* Short Description */}
               <div>
                 <label className="block text-xs font-semibold text-slate-300 mb-1">
-                  Short Description
+                  Short Summary <span className="text-slate-500">(Optional — shown on product card)</span>
                 </label>
                 <textarea
                   rows={2}
                   value={productForm.shortDescription || ''}
                   onChange={e => setProductForm({ ...productForm, shortDescription: e.target.value })}
-                  className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none"
+                  placeholder="Brief 1-2 line overview of this product..."
+                  className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white placeholder-slate-500 focus:outline-none"
                 />
               </div>
 
               {/* Full Description */}
               <div>
                 <label className="block text-xs font-semibold text-slate-300 mb-1">
-                  Full Technical Description
+                  Product Description
                 </label>
                 <textarea
                   rows={3}
                   value={productForm.description || ''}
                   onChange={e => setProductForm({ ...productForm, description: e.target.value })}
-                  className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none"
+                  placeholder="Full details, materials, usage instructions, or key highlights..."
+                  className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white placeholder-slate-500 focus:outline-none"
                 />
+              </div>
+
+              {/* Optional Key Features & Specifications */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-3.5 rounded-2xl bg-slate-950/60 border border-slate-800">
+                {/* Key Features */}
+                <div className="space-y-2">
+                  <label className="block text-xs font-semibold text-slate-300">
+                    Key Features <span className="text-slate-500 font-normal">(Optional)</span>
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={newFeatureInput}
+                      onChange={e => setNewFeatureInput(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          const val = newFeatureInput.trim();
+                          if (!val) return;
+                          setProductForm(prev => ({
+                            ...prev,
+                            features: [...(prev.features || []), val]
+                          }));
+                          setNewFeatureInput('');
+                        }
+                      }}
+                      placeholder="Add a feature..."
+                      className="flex-1 px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-xs text-white placeholder-slate-500 focus:outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const val = newFeatureInput.trim();
+                        if (!val) return;
+                        setProductForm(prev => ({
+                          ...prev,
+                          features: [...(prev.features || []), val]
+                        }));
+                        setNewFeatureInput('');
+                      }}
+                      className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-400 text-xs font-semibold"
+                    >
+                      Add
+                    </button>
+                  </div>
+                  {(productForm.features || []).length > 0 && (
+                    <div className="space-y-1 max-h-28 overflow-y-auto">
+                      {(productForm.features || []).map((feat, idx) => (
+                        <div key={idx} className="flex items-center justify-between gap-2 px-2.5 py-1 rounded bg-slate-900 text-[11px] text-slate-300">
+                          <span className="truncate">{feat}</span>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setProductForm(prev => ({
+                                ...prev,
+                                features: (prev.features || []).filter((_, i) => i !== idx)
+                              }))
+                            }
+                            className="text-slate-500 hover:text-red-400 shrink-0"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Specifications */}
+                <div className="space-y-2">
+                  <label className="block text-xs font-semibold text-slate-300">
+                    Specifications <span className="text-slate-500 font-normal">(Optional)</span>
+                  </label>
+                  <div className="flex gap-1.5">
+                    <input
+                      type="text"
+                      value={newSpecLabel}
+                      onChange={e => setNewSpecLabel(e.target.value)}
+                      placeholder="Label (e.g. Color)"
+                      className="w-1/2 px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-xs text-white placeholder-slate-500 focus:outline-none"
+                    />
+                    <input
+                      type="text"
+                      value={newSpecValue}
+                      onChange={e => setNewSpecValue(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          if (!newSpecLabel.trim() || !newSpecValue.trim()) return;
+                          setProductForm(prev => ({
+                            ...prev,
+                            specifications: [
+                              ...(prev.specifications || []),
+                              { label: newSpecLabel.trim(), value: newSpecValue.trim() }
+                            ]
+                          }));
+                          setNewSpecLabel('');
+                          setNewSpecValue('');
+                        }
+                      }}
+                      placeholder="Value (e.g. Black)"
+                      className="w-1/2 px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-xs text-white placeholder-slate-500 focus:outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!newSpecLabel.trim() || !newSpecValue.trim()) return;
+                        setProductForm(prev => ({
+                          ...prev,
+                          specifications: [
+                            ...(prev.specifications || []),
+                            { label: newSpecLabel.trim(), value: newSpecValue.trim() }
+                          ]
+                        }));
+                        setNewSpecLabel('');
+                        setNewSpecValue('');
+                      }}
+                      className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-400 text-xs font-semibold shrink-0"
+                    >
+                      Add
+                    </button>
+                  </div>
+                  {(productForm.specifications || []).length > 0 && (
+                    <div className="space-y-1 max-h-28 overflow-y-auto">
+                      {(productForm.specifications || []).map((spec, idx) => (
+                        <div key={idx} className="flex items-center justify-between gap-2 px-2.5 py-1 rounded bg-slate-900 text-[11px] text-slate-300">
+                          <span className="truncate">
+                            <strong className="text-slate-400">{spec.label}:</strong> {spec.value}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setProductForm(prev => ({
+                                ...prev,
+                                specifications: (prev.specifications || []).filter((_, i) => i !== idx)
+                              }))
+                            }
+                            className="text-slate-500 hover:text-red-400 shrink-0"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Visibility & Badges Toggles */}
@@ -2397,7 +2746,17 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onOpenInvoice }) => {
                   <input
                     type="checkbox"
                     checked={productForm.isVisible ?? true}
-                    onChange={e => setProductForm({ ...productForm, isVisible: e.target.checked })}
+                    onChange={e =>
+                      setProductForm({
+                        ...productForm,
+                        isVisible: e.target.checked,
+                        status: e.target.checked
+                          ? productForm.status === 'inactive' || productForm.status === 'draft'
+                            ? 'active'
+                            : productForm.status || 'active'
+                          : 'inactive'
+                      })
+                    }
                     className="w-4 h-4 text-cyan-500 rounded bg-slate-950 border-slate-700"
                   />
                   <span>Product Visible in Store</span>
@@ -2441,34 +2800,42 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onOpenInvoice }) => {
 
             <form onSubmit={handleSaveCategory} className="space-y-4 text-xs">
               <div>
-                <label className="block font-semibold text-slate-300 mb-1">Category Name</label>
+                <label className="block font-semibold text-slate-300 mb-1">
+                  Category Name <span className="text-red-400">*</span>
+                </label>
                 <input
                   type="text"
                   value={categoryForm.name || ''}
                   onChange={e => setCategoryForm({ ...categoryForm, name: e.target.value })}
-                  placeholder="e.g. Smart Alarm Systems"
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-sm text-white focus:outline-none"
+                  placeholder="e.g. Mobile Phones, Laptops, Fashion, Accessories..."
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
                   required
                 />
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-300 mb-1">Description</label>
+                <label className="block font-semibold text-slate-300 mb-1">
+                  Description <span className="text-slate-500">(Optional)</span>
+                </label>
                 <textarea
                   rows={2}
                   value={categoryForm.description || ''}
                   onChange={e => setCategoryForm({ ...categoryForm, description: e.target.value })}
-                  className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white focus:outline-none"
+                  placeholder="Short description for this product category..."
+                  className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white placeholder-slate-500 focus:outline-none"
                 />
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-300 mb-1">Banner Image URL</label>
+                <label className="block font-semibold text-slate-300 mb-1">
+                  Category Image URL <span className="text-slate-500">(Optional)</span>
+                </label>
                 <input
                   type="text"
                   value={categoryForm.image || ''}
                   onChange={e => setCategoryForm({ ...categoryForm, image: e.target.value })}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 font-mono text-white focus:outline-none"
+                  placeholder="https://... (leave blank for default preview)"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 font-mono text-white placeholder-slate-500 focus:outline-none"
                 />
               </div>
 
@@ -2479,7 +2846,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onOpenInvoice }) => {
                   onChange={e => setCategoryForm({ ...categoryForm, isEnabled: e.target.checked })}
                   className="w-4 h-4 text-cyan-500 rounded bg-slate-950 border-slate-700"
                 />
-                <span className="text-slate-300 font-medium">Category Enabled in Navigation</span>
+                <span className="text-slate-300 font-medium">Category Enabled in Store & Navigation</span>
               </label>
 
               <div className="pt-4 border-t border-slate-800 flex justify-end gap-3">
@@ -2617,11 +2984,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onOpenInvoice }) => {
                     <div key={idx} className="flex justify-between items-center p-2.5 rounded-xl bg-slate-950 border border-slate-800">
                       <div className="flex items-center gap-3">
                         <img
-                          src={it.image || './placeholder-security.svg'}
+                          src={it.image || './placeholder-product.svg'}
                           alt={it.name}
                           className="w-10 h-10 rounded-lg object-cover border border-slate-800 shrink-0"
                           onError={(e) => {
-                            (e.target as HTMLImageElement).src = './placeholder-security.svg';
+                            (e.target as HTMLImageElement).src = './placeholder-product.svg';
                           }}
                         />
                         <div>

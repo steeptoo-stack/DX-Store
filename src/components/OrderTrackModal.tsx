@@ -62,7 +62,7 @@ export const OrderTrackModal: React.FC<OrderTrackModalProps> = ({
         <div className="p-5 border-b border-slate-800 bg-slate-950/70 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Truck className="w-5 h-5 text-cyan-400" />
-            <h2 className="text-base font-bold text-white">Track Security Order</h2>
+            <h2 className="text-base font-bold text-white">Track Your Order</h2>
           </div>
           <button
             onClick={onClose}

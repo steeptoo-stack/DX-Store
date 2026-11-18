@@ -182,10 +182,10 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
             </div>
             <div>
               <h2 className="text-base sm:text-lg font-bold text-white">
-                Complete Your Security Order
+                Complete Your Order
               </h2>
               <p className="text-xs text-slate-400">
-                Authorized Genuine Hardware with 2-Year Warranty
+                100% Authentic Products & Nationwide Delivery
               </p>
             </div>
           </div>
@@ -350,13 +350,13 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 {/* Order Notes */}
                 <div>
                   <label className="block text-xs font-semibold text-slate-400 mb-1">
-                    Special Installation / Delivery Notes (Optional)
+                    Order / Delivery Notes (Optional)
                   </label>
                   <input
                     type="text"
                     value={notes}
                     onChange={e => setNotes(e.target.value)}
-                    placeholder="e.g. Call before coming, urgent office installation"
+                    placeholder="e.g. Call before delivery, preferred delivery time"
                     className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-cyan-500"
                   />
                 </div>
@@ -375,11 +375,11 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                   {cart.map(({ product, quantity }) => (
                     <div key={product.id} className="flex items-center gap-2.5 text-xs bg-slate-900/50 p-2 rounded-xl border border-slate-850">
                       <img
-                        src={product.mainImage || (product.images && product.images[0]) || './placeholder-security.svg'}
+                        src={product.mainImage || (product.images && product.images[0]) || './placeholder-product.svg'}
                         alt={product.name}
                         className="w-10 h-10 object-cover rounded-lg border border-slate-800 shrink-0"
                         onError={(e) => {
-                          (e.target as HTMLImageElement).src = './placeholder-security.svg';
+                          (e.target as HTMLImageElement).src = './placeholder-product.svg';
                         }}
                       />
                       <div className="min-w-0 flex-1">
@@ -707,7 +707,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 className="w-full py-4 rounded-xl bg-gradient-to-r from-cyan-500 via-cyan-400 to-blue-500 hover:from-cyan-400 hover:to-blue-400 text-slate-950 font-bold text-sm tracking-wide shadow-xl shadow-cyan-500/25 transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
               >
                 {isSubmitting ? (
-                  <span>Processing Security Order...</span>
+                  <span>Processing Order...</span>
                 ) : (
                   <>
                     <Lock className="w-4 h-4" />
@@ -717,7 +717,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               </button>
 
               <p className="text-[11px] text-slate-500 text-center">
-                By placing an order, you agree to DX Security's Warranty, Terms & Delivery Policies.
+                By placing an order, you agree to {settings.store.name || 'DX Security'}'s Terms, Return & Delivery Policies.
               </p>
             </div>
 

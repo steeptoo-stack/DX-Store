@@ -14,13 +14,14 @@ export interface Product {
   name: string;
   slug: string;
   category: string;
+  brand?: string;
   price: number;
   discountPrice: number | null;
   stock: number;
   sku: string;
   images: string[];
   mainImage: string;
-  status: 'active' | 'draft' | 'out_of_stock';
+  status: 'active' | 'inactive' | 'draft' | 'out_of_stock';
   isFeatured: boolean;
   isNewArrival: boolean;
   isVisible: boolean;

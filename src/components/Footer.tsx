@@ -10,8 +10,7 @@ import {
   Clock, 
   Truck,
   Facebook,
-  Youtube,
-  Instagram
+  Youtube
 } from 'lucide-react';
 
 interface FooterProps {
@@ -37,8 +36,8 @@ export const Footer: React.FC<FooterProps> = ({ onOpenPolicy, onOpenTrackOrder }
                 <Shield className="w-5 h-5" />
               </div>
               <div>
-                <p className="font-bold text-white text-xs">2 Years Warranty</p>
-                <p className="text-[11px] text-slate-400">Official brand replacement</p>
+                <p className="font-bold text-white text-xs">Authentic Quality</p>
+                <p className="text-[11px] text-slate-400">Verified & genuine products</p>
               </div>
             </div>
 
@@ -67,8 +66,8 @@ export const Footer: React.FC<FooterProps> = ({ onOpenPolicy, onOpenTrackOrder }
                 <Clock className="w-5 h-5" />
               </div>
               <div>
-                <p className="font-bold text-white text-xs">Surveillance Support</p>
-                <p className="text-[11px] text-slate-400">Field engineer guidance</p>
+                <p className="font-bold text-white text-xs">Dedicated Support</p>
+                <p className="text-[11px] text-slate-400">Fast order & product assistance</p>
               </div>
             </div>
           </div>
@@ -91,7 +90,7 @@ export const Footer: React.FC<FooterProps> = ({ onOpenPolicy, onOpenTrackOrder }
             </div>
 
             <p className="text-xs text-slate-400 leading-relaxed max-w-sm">
-              {settings.store.description || 'Bangladesh’s premier destination for enterprise & residential CCTV cameras, NVRs, biometric attendance devices, and video intercoms.'}
+              {settings.store.description || 'Bangladesh’s trusted online destination for electronics, gadgets, cameras, fashion, accessories, home appliances, and more.'}
             </p>
 
             {/* Accepted Payments Strip */}
@@ -136,7 +135,7 @@ export const Footer: React.FC<FooterProps> = ({ onOpenPolicy, onOpenTrackOrder }
               </li>
               <li>
                 <button onClick={() => { setActiveView('about'); window.scrollTo(0,0); }} className="hover:text-cyan-400 transition-colors">
-                  About DX Security
+                  About {settings.store.name || 'DX Security'}
                 </button>
               </li>
               <li>
