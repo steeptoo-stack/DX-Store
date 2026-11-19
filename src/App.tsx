@@ -42,6 +42,8 @@ const MainApp: React.FC = () => {
     setActiveView, 
     selectedCategory,
     setSelectedCategory,
+    trackingOrderId,
+    setTrackingOrderId,
     isAdminAuthenticated,
     notification,
     addToCart
@@ -475,6 +477,7 @@ const MainApp: React.FC = () => {
           onClose={() => setSuccessOrderId(null)}
           onTrackOrder={ordId => {
             setSuccessOrderId(null);
+            setTrackingOrderId(ordId);
             setIsTrackOrderOpen(true);
           }}
           onPrintInvoice={ordId => {
@@ -490,8 +493,11 @@ const MainApp: React.FC = () => {
       {/* Order Tracking Modal */}
       <OrderTrackModal
         isOpen={isTrackOrderOpen}
-        onClose={() => setIsTrackOrderOpen(false)}
-        initialOrderId={successOrderId}
+        onClose={() => {
+          setIsTrackOrderOpen(false);
+          setTrackingOrderId(null);
+        }}
+        initialOrderId={trackingOrderId}
       />
 
       {/* Printable Invoice Modal (Admin / Order View) */}

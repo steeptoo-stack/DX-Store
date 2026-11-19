@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import { useStore } from '../context/StoreContext';
 import { 
   UploadCloud, 
   Trash2, 
@@ -22,9 +23,9 @@ interface ProductImageManagerProps {
 export const ProductImageManager: React.FC<ProductImageManagerProps> = ({
   images,
   mainImage,
-  onChange,
-  token
+  onChange
 }) => {
+  const { uploadProductImage } = useStore();
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -48,52 +49,8 @@ export const ProductImageManager: React.FC<ProductImageManagerProps> = ({
   };
 
   const uploadFileToServer = async (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = async () => {
-        try {
-          const base64Data = reader.result as string;
-          const authToken = token || sessionStorage.getItem('dx_admin_token') || localStorage.getItem('dx_admin_token') || '';
-
-          const res = await fetch('/api/upload', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${authToken}`
-            },
-            body: JSON.stringify({
-              fileName: file.name,
-              fileType: file.type,
-              fileData: base64Data
-            })
-          });
-
-          if (!res.ok) {
-            // Static hosting fallback (e.g. GitHub Pages without Node backend)
-            if (res.status === 404 || res.status === 502 || res.status === 503) {
-              resolve(base64Data);
-              return;
-            }
-            const errData = await res.json().catch(() => ({}));
-            throw new Error(errData.error || 'Image upload failed. Please try again.');
-          }
-
-          const data = await res.json();
-          resolve(data.url);
-        } catch (err: any) {
-          // If network error (static GitHub Pages), use the base64 data URL directly
-          if (reader.result) {
-            resolve(reader.result as string);
-            return;
-          }
-          reject(err);
-        }
-      };
-      reader.onerror = () => {
-        reject(new Error('Image upload failed. Please try again.'));
-      };
-      reader.readAsDataURL(file);
-    });
+    const result = await uploadProductImage(file);
+    return result.url;
   };
 
   const handleFilesSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {

@@ -161,8 +161,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
       onClose();
       onOrderPlaced(order.id);
-    } catch (err) {
-      showNotification('Failed to submit order. Please try again.', 'error');
+    } catch (err: any) {
+      showNotification(err?.message || 'Failed to submit order. Please try again.', 'error');
     } finally {
       setIsSubmitting(false);
     }

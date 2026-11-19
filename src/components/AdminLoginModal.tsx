@@ -32,12 +32,9 @@ export const AdminLoginModal: React.FC<AdminLoginModalProps> = ({
     if (res.success) {
       setPassword('');
       setErrorMessage(null);
-      if (typeof window !== 'undefined') {
-        window.history.pushState(null, '', '/admin');
-      }
       onSuccess();
     } else {
-      setErrorMessage('Invalid email or password.');
+      setErrorMessage(res.error || 'Invalid email or password.');
     }
   };
 

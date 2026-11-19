@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useStore } from '../context/StoreContext';
 import { Order } from '../types';
 import { X, Search, Truck, CheckCircle2, Clock, AlertCircle, Package } from 'lucide-react';
@@ -14,31 +14,50 @@ export const OrderTrackModal: React.FC<OrderTrackModalProps> = ({
   onClose,
   initialOrderId
 }) => {
-  const { orders, settings } = useStore();
+  const { settings, trackOrderByQuery } = useStore();
   const [searchInput, setSearchInput] = useState(initialOrderId || '');
-  const [searchedOrder, setSearchedOrder] = useState<Order | null>(() => {
-    if (initialOrderId) {
-      return orders.find(o => o.id.toLowerCase() === initialOrderId.toLowerCase()) || null;
+  const [searchedOrder, setSearchedOrder] = useState<Order | null>(null);
+  const [hasSearched, setHasSearched] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
+  const lastTrackedRef = React.useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!isOpen) {
+      lastTrackedRef.current = null;
+      return;
     }
-    return null;
-  });
-  const [hasSearched, setHasSearched] = useState(Boolean(initialOrderId));
+    if (initialOrderId && initialOrderId.trim()) {
+      const cleanId = initialOrderId.trim();
+      if (lastTrackedRef.current === cleanId) return;
+      lastTrackedRef.current = cleanId;
+      setSearchInput(cleanId);
+      setIsSearching(true);
+      trackOrderByQuery(cleanId)
+        .then(match => {
+          setSearchedOrder(match || null);
+          setHasSearched(true);
+        })
+        .finally(() => setIsSearching(false));
+    }
+  }, [isOpen, initialOrderId, trackOrderByQuery]);
 
   if (!isOpen) return null;
 
   const currency = settings.store?.currencySymbol || '৳';
 
-  const handleSearch = (e: React.FormEvent) => {
+  const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
-    const query = searchInput.trim().toLowerCase();
+    const query = searchInput.trim();
     if (!query) return;
 
-    const match = orders.find(
-      o => o.id.toLowerCase() === query || o.phone.replace(/[^0-9]/g, '') === query.replace(/[^0-9]/g, '')
-    );
-
-    setSearchedOrder(match || null);
-    setHasSearched(true);
+    setIsSearching(true);
+    try {
+      const match = await trackOrderByQuery(query);
+      setSearchedOrder(match || null);
+      setHasSearched(true);
+    } finally {
+      setIsSearching(false);
+    }
   };
 
   const getStatusColor = (status: string) => {
@@ -85,10 +104,11 @@ export const OrderTrackModal: React.FC<OrderTrackModalProps> = ({
             />
             <button
               type="submit"
-              className="px-5 py-3 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-sm transition-all flex items-center gap-1.5 cursor-pointer"
+              disabled={isSearching}
+              className="px-5 py-3 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-sm transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
             >
               <Search className="w-4 h-4" />
-              <span>Track</span>
+              <span>{isSearching ? 'Searching...' : 'Track'}</span>
             </button>
           </form>
 
@@ -127,7 +147,12 @@ export const OrderTrackModal: React.FC<OrderTrackModalProps> = ({
                     </div>
                     <div>
                       <p className="text-slate-400">Delivery Address</p>
-                      <p className="text-white">{searchedOrder.address}, {searchedOrder.district}</p>
+                      <p className="text-white">
+                        {searchedOrder.address &&
+                        searchedOrder.address.trim().toLowerCase() !== searchedOrder.district.trim().toLowerCase()
+                          ? `${searchedOrder.address}, ${searchedOrder.district}`
+                          : searchedOrder.district || searchedOrder.address}
+                      </p>
                     </div>
                   </div>
 

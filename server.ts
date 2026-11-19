@@ -535,11 +535,9 @@ async function startServer() {
       server: { middlewareMode: true },
       appType: 'spa'
     });
-    app.get('/', (req, res) => {
-      res.redirect('/Dx-Store/');
-    });
     app.use(vite.middlewares);
   } else {
+    app.use('/DX-Store', express.static(path.resolve(__dirname, 'dist')));
     app.use('/Dx-Store', express.static(path.resolve(__dirname, 'dist')));
     app.use(express.static(path.resolve(__dirname, 'dist')));
     app.get('*', (req, res) => {
