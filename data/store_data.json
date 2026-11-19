@@ -576,9 +576,9 @@
       "paymentStatus": "Verified",
       "paymentPhoneNumber": "01712345678",
       "transactionId": "BK9A82X91M",
-      "orderStatus": "Confirmed",
+      "orderStatus": "Delivered",
       "createdAt": "2026-10-06T14:22:00Z",
-      "updatedAt": "2026-10-08T03:05:45.848Z",
+      "updatedAt": "2026-11-19T12:03:09.622Z",
       "timeline": [
         {
           "status": "Pending",
@@ -625,10 +625,10 @@
       "deliveryCharge": 150,
       "total": 5850,
       "paymentMethod": "cod",
-      "paymentStatus": "Rejected",
-      "orderStatus": "Confirmed",
+      "paymentStatus": "Verified",
+      "orderStatus": "Delivered",
       "createdAt": "2026-10-07T09:15:00Z",
-      "updatedAt": "2026-10-08T03:06:00.989Z",
+      "updatedAt": "2026-11-19T12:03:07.757Z",
       "timeline": [
         {
           "status": "Pending",
@@ -665,12 +665,12 @@
       "deliveryCharge": 80,
       "total": 6280,
       "paymentMethod": "bkash",
-      "paymentStatus": "Pending",
+      "paymentStatus": "Verified",
       "paymentPhoneNumber": "01911223344",
       "transactionId": "BK7K3921AA",
-      "orderStatus": "Pending",
+      "orderStatus": "Delivered",
       "createdAt": "2026-10-07T10:10:00Z",
-      "updatedAt": "2026-10-07T10:10:00Z",
+      "updatedAt": "2026-11-19T12:03:05.597Z",
       "timeline": [
         {
           "status": "Pending",
