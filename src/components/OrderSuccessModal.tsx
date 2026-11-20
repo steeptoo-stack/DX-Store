@@ -34,20 +34,59 @@ export const OrderSuccessModal: React.FC<OrderSuccessModalProps> = ({
   const currency = settings.store?.currencySymbol || '৳';
   const whatsappNumber = settings.contact.whatsapp || '01761861680';
   const cleanWhatsApp = whatsappNumber.replace(/[^0-9]/g, '');
+  const advancePaid =
+    order.advanceAmount ?? (order.paymentMethod === 'cod' ? 0 : order.deliveryCharge);
+  const codRemaining =
+    order.remainingCodAmount ?? Math.max(0, order.total - advancePaid);
+
+  const methodNames: Record<string, string> = {
+    nagad: 'Nagad',
+    rocket: 'Rocket',
+    upay: 'Upay',
+    bkash: 'bKash',
+    cod: 'Cash on Delivery',
+  };
+  const methodLabel = methodNames[order.paymentMethod] || order.paymentMethod.toUpperCase();
 
   const waMessage = `Hello DX Security BD! 
 I have placed Order #${order.id}.
 Customer: ${order.customerName}
 Phone: ${order.phone}
-Total: ${currency}${order.total}
-Payment Method: ${order.paymentMethod.toUpperCase()}${
+Product Price: ${currency}${order.subtotal}
+Advance Delivery Paid: ${currency}${advancePaid}
+Remaining COD Due: ${currency}${codRemaining}
+Payment Method: ${methodLabel}${
     order.transactionId ? ` (TrxID: ${order.transactionId})` : ''
-  }
+  }${order.paymentScreenshotUrl ? ' [Payment Screenshot Uploaded]' : ''}
 Please confirm and arrange dispatch!`;
 
   const waUrl = `https://wa.me/88${cleanWhatsApp.startsWith('88') ? cleanWhatsApp.slice(2) : cleanWhatsApp}?text=${encodeURIComponent(
     waMessage
   )}`;
+
+  const methodStyleMap: Record<string, { box: string; badge: string; sub: string }> = {
+    nagad: {
+      box: 'bg-orange-950/40 border-orange-800/80 text-orange-200',
+      badge: 'bg-orange-900 text-orange-300',
+      sub: 'text-orange-300',
+    },
+    rocket: {
+      box: 'bg-purple-950/40 border-purple-800/80 text-purple-200',
+      badge: 'bg-purple-900 text-purple-300',
+      sub: 'text-purple-300',
+    },
+    upay: {
+      box: 'bg-teal-950/40 border-teal-800/80 text-teal-200',
+      badge: 'bg-teal-900 text-teal-300',
+      sub: 'text-teal-300',
+    },
+    bkash: {
+      box: 'bg-pink-950/40 border-pink-800/80 text-pink-200',
+      badge: 'bg-pink-900 text-pink-300',
+      sub: 'text-pink-300',
+    },
+  };
+  const activeStyle = methodStyleMap[order.paymentMethod];
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-200">
@@ -68,7 +107,7 @@ Please confirm and arrange dispatch!`;
             Thank you, {order.customerName}!
           </h2>
           <p className="text-sm text-slate-300 mt-1">
-            Your order has been received and queued for dispatch.
+            Your order has been received and queued for verification.
           </p>
         </div>
 
@@ -80,10 +119,25 @@ Please confirm and arrange dispatch!`;
               <p className="text-xl font-black font-mono text-cyan-400">{order.id}</p>
             </div>
             <div className="sm:text-right">
-              <p className="text-xs text-slate-400">Total Payable</p>
-              <p className="text-xl font-bold font-mono text-white">
-                {currency}{order.total.toLocaleString()}
+              <p className="text-xs text-slate-400">Remaining COD on Delivery</p>
+              <p className="text-xl font-bold font-mono text-amber-300">
+                {currency}{codRemaining.toLocaleString()}
               </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-2 p-2.5 rounded-xl bg-slate-900/70 border border-slate-800 text-xs">
+            <div>
+              <span className="text-[11px] text-slate-400 block">Product Price</span>
+              <span className="font-mono font-bold text-white">{currency}{order.subtotal.toLocaleString()}</span>
+            </div>
+            <div>
+              <span className="text-[11px] text-slate-400 block">Delivery Charge</span>
+              <span className="font-mono font-bold text-white">{currency}{order.deliveryCharge.toLocaleString()}</span>
+            </div>
+            <div>
+              <span className="text-[11px] text-emerald-400 block">Advance Paid</span>
+              <span className="font-mono font-bold text-emerald-300">{currency}{advancePaid.toLocaleString()}</span>
             </div>
           </div>
 
@@ -100,41 +154,41 @@ Please confirm and arrange dispatch!`;
 
           {/* Payment Status Notice */}
           <div className="pt-2 border-t border-slate-800">
-            {order.paymentMethod === 'bkash' && (
-              <div className="p-3 rounded-xl bg-pink-950/40 border border-pink-800/80 text-xs text-pink-200 space-y-1">
-                <div className="flex items-center justify-between font-bold">
-                  <span>bKash Send Money Reference</span>
-                  <span className="px-2 py-0.5 rounded bg-pink-900 text-pink-300 font-mono text-[10px]">
+            {order.paymentMethod !== 'cod' && activeStyle ? (
+              <div className={`p-3 rounded-xl border text-xs space-y-1 ${activeStyle.box}`}>
+                <div className="flex items-center justify-between font-bold gap-2">
+                  <span>{methodLabel} Send Money Proof</span>
+                  <span className={`px-2 py-0.5 rounded font-mono text-[10px] ${activeStyle.badge}`}>
                     Status: Pending Verification
                   </span>
                 </div>
-                <p className="text-[11px] text-pink-300">
-                  Transaction ID: <span className="font-mono font-bold text-white">{order.transactionId || 'Submitted'}</span> | Sender Number: <span className="font-mono font-bold text-white">{order.paymentPhoneNumber}</span>
+                <p className={`text-[11px] ${activeStyle.sub}`}>
+                  {order.transactionId ? (
+                    <>
+                      TrxID: <span className="font-mono font-bold text-white">{order.transactionId}</span>
+                    </>
+                  ) : (
+                    <span>TrxID: Optional (not entered)</span>
+                  )}
+                  {order.paymentScreenshotUrl && (
+                    <>
+                      {' '}• <span className="font-semibold text-emerald-300">Payment Screenshot Uploaded ✓</span>
+                    </>
+                  )}
+                  {order.paymentPhoneNumber && (
+                    <>
+                      {' '}• Sender: <span className="font-mono font-bold text-white">{order.paymentPhoneNumber}</span>
+                    </>
+                  )}
                 </p>
-                <p className="text-[10px] text-slate-400">
-                  *Our verification desk checks the TrxID with bKash statement before dispatching your package.
+                <p className="text-[10px] text-slate-300">
+                  *Only the delivery charge ({currency}{advancePaid.toLocaleString()}) is paid in advance. Remaining {currency}{codRemaining.toLocaleString()} is payable in cash upon delivery.
                 </p>
               </div>
-            )}
-
-            {order.paymentMethod === 'nagad' && (
-              <div className="p-3 rounded-xl bg-orange-950/40 border border-orange-800/80 text-xs text-orange-200 space-y-1">
-                <div className="flex items-center justify-between font-bold">
-                  <span>Nagad Payment Reference</span>
-                  <span className="px-2 py-0.5 rounded bg-orange-900 text-orange-300 font-mono text-[10px]">
-                    Status: Pending Verification
-                  </span>
-                </div>
-                <p className="text-[11px] text-orange-300">
-                  Transaction ID: <span className="font-mono font-bold text-white">{order.transactionId}</span>
-                </p>
-              </div>
-            )}
-
-            {order.paymentMethod === 'cod' && (
+            ) : (
               <div className="p-3 rounded-xl bg-slate-900 border border-slate-800 text-xs text-slate-300 flex items-center gap-2">
                 <Truck className="w-4 h-4 text-emerald-400 shrink-0" />
-                <span>Cash on Delivery: Please keep exact cash ready for the courier.</span>
+                <span>Cash on Delivery: Please keep {currency}{codRemaining.toLocaleString()} ready for the courier.</span>
               </div>
             )}
           </div>

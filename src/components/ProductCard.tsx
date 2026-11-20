@@ -24,7 +24,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   const displayPrice = product.discountPrice ?? product.price;
 
   return (
-    <div className="group relative bg-slate-900/90 border border-slate-800 hover:border-cyan-500/50 rounded-2xl overflow-hidden flex flex-col transition-all duration-300 hover:shadow-xl hover:shadow-cyan-950/30">
+    <div className="group relative bg-slate-900/85 backdrop-blur-sm border border-slate-800 hover:border-cyan-500/50 rounded-2xl overflow-hidden flex flex-col transition-all duration-300 hover:shadow-xl hover:shadow-cyan-950/30">
       {/* Product Image Area */}
       <div className="relative aspect-[4/3] bg-slate-950 overflow-hidden cursor-pointer" onClick={() => onOpenQuickView(product)}>
         <img

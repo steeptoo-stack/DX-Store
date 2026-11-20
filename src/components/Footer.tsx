@@ -26,9 +26,9 @@ export const Footer: React.FC<FooterProps> = ({ onOpenPolicy, onOpenTrackOrder }
   const email = settings.contact.email;
 
   return (
-    <footer className="bg-slate-950 border-t border-slate-800 text-slate-400 text-xs">
+    <footer className="relative z-10 bg-slate-950/45 backdrop-blur-[2px] border-t border-slate-800/70 text-slate-300 text-xs">
       {/* Upper features strip */}
-      <div className="border-b border-slate-800/80 bg-slate-900/40">
+      <div className="border-b border-slate-800/60 bg-slate-900/25">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             <div className="flex items-center gap-3">
@@ -56,8 +56,8 @@ export const Footer: React.FC<FooterProps> = ({ onOpenPolicy, onOpenTrackOrder }
                 <CheckCircle className="w-5 h-5" />
               </div>
               <div>
-                <p className="font-bold text-white text-xs">bKash, Nagad & COD</p>
-                <p className="text-[11px] text-slate-400">Convenient manual payments</p>
+                <p className="font-bold text-white text-xs">Nagad, Rocket, Upay &amp; COD</p>
+                <p className="text-[11px] text-slate-400">Advance delivery charge + COD</p>
               </div>
             </div>
 
@@ -99,14 +99,28 @@ export const Footer: React.FC<FooterProps> = ({ onOpenPolicy, onOpenTrackOrder }
                 Accepted Payment Methods:
               </p>
               <div className="flex flex-wrap items-center gap-2">
+                {settings.payment.nagadEnabled && (
+                  <span className="px-2.5 py-1 rounded bg-orange-950/80 border border-orange-800 text-[11px] font-mono font-bold text-orange-300">
+                    Nagad ({settings.payment.nagadNumber})
+                  </span>
+                )}
+                {settings.payment.rocketEnabled && (
+                  <span className="px-2.5 py-1 rounded bg-purple-950/80 border border-purple-800 text-[11px] font-mono font-bold text-purple-300">
+                    Rocket ({settings.payment.rocketNumber})
+                  </span>
+                )}
+                {settings.payment.upayEnabled && (
+                  <span className="px-2.5 py-1 rounded bg-teal-950/80 border border-teal-800 text-[11px] font-mono font-bold text-teal-300">
+                    Upay ({settings.payment.upayNumber})
+                  </span>
+                )}
+                {settings.payment.bkashEnabled && (
+                  <span className="px-2.5 py-1 rounded bg-pink-950/80 border border-pink-800 text-[11px] font-mono font-bold text-pink-300">
+                    bKash ({settings.payment.bkashNumber})
+                  </span>
+                )}
                 <span className="px-2.5 py-1 rounded bg-slate-900 border border-slate-800 text-[11px] font-medium text-slate-200">
-                  Cash on Delivery
-                </span>
-                <span className="px-2.5 py-1 rounded bg-pink-950/80 border border-pink-800 text-[11px] font-mono font-bold text-pink-300">
-                  bKash ({settings.payment.bkashNumber})
-                </span>
-                <span className="px-2.5 py-1 rounded bg-orange-950/80 border border-orange-800 text-[11px] font-mono font-bold text-orange-300">
-                  Nagad
+                  Cash on Delivery (Product)
                 </span>
               </div>
             </div>

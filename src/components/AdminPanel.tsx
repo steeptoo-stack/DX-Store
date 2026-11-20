@@ -45,7 +45,10 @@ import {
   MessageCircle,
   HelpCircle,
   Sliders,
-  X
+  X,
+  Image as ImageIcon,
+  ExternalLink,
+  Maximize2
 } from 'lucide-react';
 
 interface AdminPanelProps {
@@ -69,6 +72,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onOpenInvoice }) => {
     deleteCategory,
     updateOrderStatus,
     updatePaymentStatus,
+    getPaymentScreenshotUrl,
     resetToDefaults,
     logoutAdmin,
     changeAdminPassword,
@@ -84,6 +88,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onOpenInvoice }) => {
   const [orderStatusFilter, setOrderStatusFilter] = useState<string>('ALL');
   const [orderPaymentFilter, setOrderPaymentFilter] = useState<string>('ALL');
   const [selectedOrderDetails, setSelectedOrderDetails] = useState<Order | null>(null);
+  const [screenshotViewUrl, setScreenshotViewUrl] = useState<string | null>(null);
+  const [screenshotLoading, setScreenshotLoading] = useState(false);
+  const [screenshotLoadError, setScreenshotLoadError] = useState(false);
+  const [isScreenshotZoomed, setIsScreenshotZoomed] = useState(false);
 
   // --- PRODUCT FORM MODAL & FILTERS ---
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -135,6 +143,40 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onOpenInvoice }) => {
     setPolicySettings(settings.policies);
   }, [settings]);
 
+  React.useEffect(() => {
+    let cancelled = false;
+    setIsScreenshotZoomed(false);
+    setScreenshotLoadError(false);
+
+    if (!selectedOrderDetails?.paymentScreenshotUrl) {
+      setScreenshotViewUrl(null);
+      setScreenshotLoading(false);
+      return;
+    }
+
+    setScreenshotLoading(true);
+    getPaymentScreenshotUrl(selectedOrderDetails.paymentScreenshotUrl)
+      .then(url => {
+        if (!cancelled) {
+          setScreenshotViewUrl(url);
+          if (!url) setScreenshotLoadError(true);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setScreenshotViewUrl(null);
+          setScreenshotLoadError(true);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setScreenshotLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedOrderDetails?.id, selectedOrderDetails?.paymentScreenshotUrl, getPaymentScreenshotUrl]);
+
   // --- DASHBOARD CALCULATIONS ---
   const totalSales = orders
     .filter(o => o.orderStatus !== 'Cancelled')
@@ -153,11 +195,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onOpenInvoice }) => {
 
   // Filtered orders
   const filteredOrders = orders.filter(order => {
+    const q = orderSearch.toLowerCase();
     const matchSearch =
-      order.id.toLowerCase().includes(orderSearch.toLowerCase()) ||
-      order.customerName.toLowerCase().includes(orderSearch.toLowerCase()) ||
+      order.id.toLowerCase().includes(q) ||
+      order.customerName.toLowerCase().includes(q) ||
       order.phone.includes(orderSearch) ||
-      (order.transactionId && order.transactionId.toLowerCase().includes(orderSearch.toLowerCase()));
+      (order.paymentPhoneNumber && order.paymentPhoneNumber.includes(orderSearch)) ||
+      (order.transactionId && order.transactionId.toLowerCase().includes(q));
 
     const matchStatus = orderStatusFilter === 'ALL' || order.orderStatus === orderStatusFilter;
     const matchPayment = orderPaymentFilter === 'ALL' || order.paymentStatus === orderPaymentFilter;
@@ -301,7 +345,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onOpenInvoice }) => {
 
   // Settings Save Handlers
   const savePaymentSettings = async () => {
-    await updateSettings({ payment: paymentSettings });
+    await updateSettings({
+      payment: paymentSettings,
+      delivery: deliverySettings,
+    });
   };
 
   const saveStoreAndContactSettings = async () => {
@@ -461,7 +508,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onOpenInvoice }) => {
               }`}
             >
               <CreditCard className="w-4 h-4 text-pink-400" />
-              <span>Payment Settings (bKash/Nagad)</span>
+              <span>Payment Settings</span>
             </button>
 
             <button
@@ -572,7 +619,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onOpenInvoice }) => {
                   className="px-3.5 py-2 rounded-xl bg-pink-950 border border-pink-700/60 text-pink-300 text-xs font-semibold hover:bg-pink-900 transition-colors flex items-center gap-1.5"
                 >
                   <CreditCard className="w-3.5 h-3.5" />
-                  <span>bKash Number: {settings.payment.bkashNumber}</span>
+                  <span>Nagad / Mobile: {settings.payment.nagadNumber || settings.payment.bkashNumber}</span>
                 </button>
                 <button
                   onClick={() => handleOpenProductModal()}
@@ -663,16 +710,19 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onOpenInvoice }) => {
                       <tr>
                         <th className="py-3 px-4">Order ID</th>
                         <th className="py-3 px-4">Customer</th>
-                        <th className="py-3 px-4">Total</th>
+                        <th className="py-3 px-4">Amount Breakdown</th>
                         <th className="py-3 px-4">Payment Method</th>
-                        <th className="py-3 px-4">TrxID</th>
+                        <th className="py-3 px-4">Payment Proof</th>
                         <th className="py-3 px-4">Payment Status</th>
                         <th className="py-3 px-4">Order Status</th>
                         <th className="py-3 px-4 text-right">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-800">
-                      {orders.slice(0, 5).map(ord => (
+                      {orders.slice(0, 5).map(ord => {
+                        const advancePaid = ord.advanceAmount ?? (ord.paymentMethod === 'cod' ? 0 : ord.deliveryCharge);
+                        const codDue = ord.remainingCodAmount ?? Math.max(0, ord.total - advancePaid);
+                        return (
                         <tr key={ord.id} className="hover:bg-slate-800/40">
                           <td className="py-3 px-4 font-mono font-bold text-cyan-400">
                             {ord.id}
@@ -681,14 +731,26 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onOpenInvoice }) => {
                             <p className="font-semibold text-white">{ord.customerName}</p>
                             <p className="text-[11px] text-slate-400 font-mono">{ord.phone}</p>
                           </td>
-                          <td className="py-3 px-4 font-mono font-bold text-white">
-                            {currency}{ord.total.toLocaleString()}
+                          <td className="py-3 px-4 font-mono">
+                            <span className="font-bold text-white block">
+                              {currency}{ord.total.toLocaleString()}
+                            </span>
+                            <span className="text-[10px] text-emerald-400 block">
+                              Adv: {currency}{advancePaid.toLocaleString()} | COD: {currency}{codDue.toLocaleString()}
+                            </span>
                           </td>
                           <td className="py-3 px-4 uppercase font-semibold text-slate-300">
                             {ord.paymentMethod}
                           </td>
                           <td className="py-3 px-4 font-mono text-cyan-300">
-                            {ord.transactionId || '—'}
+                            {ord.transactionId && <span className="block">{ord.transactionId}</span>}
+                            {ord.paymentScreenshotUrl && (
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-cyan-950 border border-cyan-800 text-[10px] text-cyan-300 mt-0.5">
+                                <ImageIcon className="w-3 h-3" />
+                                Screenshot
+                              </span>
+                            )}
+                            {!ord.transactionId && !ord.paymentScreenshotUrl && '—'}
                           </td>
                           <td className="py-3 px-4">
                             <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
@@ -717,7 +779,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onOpenInvoice }) => {
                             </button>
                           </td>
                         </tr>
-                      ))}
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -755,7 +818,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onOpenInvoice }) => {
               <div>
                 <h1 className="text-2xl font-black text-white">Orders Management</h1>
                 <p className="text-xs text-slate-400">
-                  Inspect manual bKash/Nagad transactions, verify payments, and change shipment status
+                  Inspect Nagad/Rocket/Upay/bKash advance payments, Transaction IDs & screenshots, COD balance, and shipment status
                 </p>
               </div>
             </div>
@@ -768,7 +831,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onOpenInvoice }) => {
                   type="text"
                   value={orderSearch}
                   onChange={e => setOrderSearch(e.target.value)}
-                  placeholder="Search by Order ID, Phone, Customer, TrxID..."
+                  placeholder="Search Order ID, Phone, Customer, TrxID..."
                   className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-cyan-500"
                 />
               </div>
@@ -811,9 +874,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onOpenInvoice }) => {
                     <tr>
                       <th className="py-3 px-4">Order ID & Date</th>
                       <th className="py-3 px-4">Customer & District</th>
-                      <th className="py-3 px-4">Items</th>
-                      <th className="py-3 px-4">Total</th>
-                      <th className="py-3 px-4">Payment Details</th>
+                      <th className="py-3 px-4">Price / Advance / COD</th>
+                      <th className="py-3 px-4">Payment & Proof</th>
                       <th className="py-3 px-4">Payment Status</th>
                       <th className="py-3 px-4">Order Status</th>
                       <th className="py-3 px-4 text-right">Actions</th>
@@ -822,17 +884,23 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onOpenInvoice }) => {
                   <tbody className="divide-y divide-slate-800">
                     {filteredOrders.length === 0 ? (
                       <tr>
-                        <td colSpan={8} className="py-8 text-center text-slate-500">
+                        <td colSpan={7} className="py-8 text-center text-slate-500">
                           No matching orders found
                         </td>
                       </tr>
                     ) : (
-                      filteredOrders.map(ord => (
+                      filteredOrders.map(ord => {
+                        const advancePaid = ord.advanceAmount ?? (ord.paymentMethod === 'cod' ? 0 : ord.deliveryCharge);
+                        const codDue = ord.remainingCodAmount ?? Math.max(0, ord.total - advancePaid);
+                        return (
                         <tr key={ord.id} className="hover:bg-slate-800/40">
                           <td className="py-3 px-4">
                             <span className="font-mono font-bold text-cyan-400 block">{ord.id}</span>
-                            <span className="text-[10px] text-slate-500 font-mono">
+                            <span className="text-[10px] text-slate-500 font-mono block">
                               {new Date(ord.createdAt).toLocaleDateString()}
+                            </span>
+                            <span className="text-[10px] text-slate-400">
+                              {ord.items.length} {ord.items.length === 1 ? 'item' : 'items'}
                             </span>
                           </td>
 
@@ -842,28 +910,42 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onOpenInvoice }) => {
                             <span className="text-[10px] text-slate-500">{ord.district}</span>
                           </td>
 
-                          <td className="py-3 px-4 text-slate-300">
-                            {ord.items.length} {ord.items.length === 1 ? 'item' : 'items'}
-                          </td>
-
-                          <td className="py-3 px-4 font-mono font-bold text-white">
-                            {currency}{ord.total.toLocaleString()}
+                          <td className="py-3 px-4 font-mono space-y-0.5">
+                            <div className="text-[11px] text-slate-300">
+                              Product: <span className="text-white font-semibold">{currency}{ord.subtotal.toLocaleString()}</span>
+                            </div>
+                            <div className="text-[11px] text-emerald-400 font-semibold">
+                              Advance (Del): {currency}{advancePaid.toLocaleString()}
+                            </div>
+                            <div className="text-[11px] text-amber-300 font-bold">
+                              COD Due: {currency}{codDue.toLocaleString()}
+                            </div>
                           </td>
 
                           <td className="py-3 px-4">
-                            <div className="space-y-0.5">
+                            <div className="space-y-1">
                               <span className="font-semibold text-slate-200 uppercase text-[11px] block">
-                                {ord.paymentMethod}
+                                {ord.paymentMethod} • {currency}{advancePaid.toLocaleString()}
                               </span>
-                              {ord.transactionId ? (
-                                <span className="font-mono text-cyan-300 text-[11px] block font-bold">
-                                  Trx: {ord.transactionId}
-                                </span>
-                              ) : null}
                               {ord.paymentPhoneNumber && (
                                 <span className="text-slate-400 font-mono text-[10px] block">
-                                  From: {ord.paymentPhoneNumber}
+                                  Sender: {ord.paymentPhoneNumber}
                                 </span>
+                              )}
+                              {ord.transactionId && (
+                                <span className="font-mono text-cyan-300 text-[11px] block font-bold">
+                                  TrxID: {ord.transactionId}
+                                </span>
+                              )}
+                              {ord.paymentScreenshotUrl && (
+                                <button
+                                  type="button"
+                                  onClick={() => setSelectedOrderDetails(ord)}
+                                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-cyan-950 hover:bg-cyan-900 border border-cyan-700 text-cyan-300 text-[10px] font-semibold cursor-pointer"
+                                >
+                                  <ImageIcon className="w-3 h-3" />
+                                  <span>View Screenshot</span>
+                                </button>
                               )}
                             </div>
                           </td>
@@ -901,11 +983,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onOpenInvoice }) => {
                             </select>
                           </td>
 
-                          <td className="py-3 px-4 text-right space-x-1">
+                          <td className="py-3 px-4 text-right space-x-1 whitespace-nowrap">
                             <button
                               onClick={() => setSelectedOrderDetails(ord)}
                               className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors"
-                              title="View Order Details"
+                              title="View Order & Payment Proof"
                             >
                               <Eye className="w-3.5 h-3.5" />
                             </button>
@@ -918,7 +1000,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onOpenInvoice }) => {
                             </button>
                           </td>
                         </tr>
-                      ))
+                        );
+                      })
                     )}
                   </tbody>
                 </table>
@@ -1264,7 +1347,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onOpenInvoice }) => {
               <div>
                 <h1 className="text-2xl font-black text-white">Payment Settings</h1>
                 <p className="text-xs text-slate-400">
-                  Update bKash number, Nagad number, COD toggles, and checkout instructions in real time
+                  Manage Nagad, Rocket, Upay, bKash numbers, enable/disable methods, and delivery charges dynamically
                 </p>
               </div>
 
@@ -1280,8 +1363,206 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onOpenInvoice }) => {
             <div className="p-4 bg-cyan-950/30 border border-cyan-800/80 rounded-2xl text-xs text-cyan-200 flex items-start gap-2.5">
               <Sparkles className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" />
               <span>
-                <strong>Live Sync:</strong> Any number or instruction you update here immediately appears on the customer checkout page. No code editing or redeployments required!
+                <strong>Live Supabase Sync &amp; Advance Delivery COD Policy:</strong> Any mobile banking number, method toggle, or delivery charge updated here is saved persistently in Supabase and immediately updates the customer checkout page without editing source code.
               </span>
+            </div>
+
+            {/* Nagad Configuration Card */}
+            <div className="p-6 rounded-2xl bg-slate-900 border border-orange-500/30 space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg bg-orange-600/20 flex items-center justify-center text-orange-400 font-black">
+                    N
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-white text-sm">Nagad Payment Settings</h3>
+                    <p className="text-[11px] text-orange-300">Send Money — Advance Delivery Charge</p>
+                  </div>
+                </div>
+
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <span className="text-xs text-slate-300">Enable Nagad</span>
+                  <input
+                    type="checkbox"
+                    checked={paymentSettings.nagadEnabled}
+                    onChange={e => setPaymentSettings({ ...paymentSettings, nagadEnabled: e.target.checked })}
+                    className="w-4 h-4 text-orange-500 rounded bg-slate-950 border-slate-700"
+                  />
+                </label>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    Nagad Payment Number <span className="text-orange-400">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={paymentSettings.nagadNumber}
+                    onChange={e => setPaymentSettings({ ...paymentSettings, nagadNumber: e.target.value })}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-sm font-mono text-white focus:outline-none focus:ring-1 focus:ring-orange-500"
+                    placeholder="01721216545"
+                  />
+                  <p className="text-[10px] text-slate-500 mt-1">Default: 01721216545</p>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    Nagad Payment Type Label
+                  </label>
+                  <input
+                    type="text"
+                    value={paymentSettings.nagadType}
+                    onChange={e => setPaymentSettings({ ...paymentSettings, nagadType: e.target.value })}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-sm text-white focus:outline-none focus:ring-1 focus:ring-orange-500"
+                    placeholder="Send Money"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">
+                  Nagad Customer Instructions
+                </label>
+                <textarea
+                  rows={3}
+                  value={paymentSettings.nagadInstructions}
+                  onChange={e => setPaymentSettings({ ...paymentSettings, nagadInstructions: e.target.value })}
+                  className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:ring-1 focus:ring-orange-500"
+                />
+              </div>
+            </div>
+
+            {/* Rocket Configuration Card */}
+            <div className="p-6 rounded-2xl bg-slate-900 border border-purple-500/30 space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg bg-purple-600/20 flex items-center justify-center text-purple-400 font-black">
+                    R
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-white text-sm">Rocket Payment Settings</h3>
+                    <p className="text-[11px] text-purple-300">DBBL Rocket — Send Money</p>
+                  </div>
+                </div>
+
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <span className="text-xs text-slate-300">Enable Rocket</span>
+                  <input
+                    type="checkbox"
+                    checked={paymentSettings.rocketEnabled}
+                    onChange={e => setPaymentSettings({ ...paymentSettings, rocketEnabled: e.target.checked })}
+                    className="w-4 h-4 text-purple-500 rounded bg-slate-950 border-slate-700"
+                  />
+                </label>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    Rocket Payment Number <span className="text-purple-400">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={paymentSettings.rocketNumber}
+                    onChange={e => setPaymentSettings({ ...paymentSettings, rocketNumber: e.target.value })}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-sm font-mono text-white focus:outline-none focus:ring-1 focus:ring-purple-500"
+                    placeholder="01721216545"
+                  />
+                  <p className="text-[10px] text-slate-500 mt-1">Default: 01721216545</p>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    Rocket Payment Type Label
+                  </label>
+                  <input
+                    type="text"
+                    value={paymentSettings.rocketType}
+                    onChange={e => setPaymentSettings({ ...paymentSettings, rocketType: e.target.value })}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-sm text-white focus:outline-none focus:ring-1 focus:ring-purple-500"
+                    placeholder="Send Money"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">
+                  Rocket Customer Instructions
+                </label>
+                <textarea
+                  rows={3}
+                  value={paymentSettings.rocketInstructions}
+                  onChange={e => setPaymentSettings({ ...paymentSettings, rocketInstructions: e.target.value })}
+                  className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:ring-1 focus:ring-purple-500"
+                />
+              </div>
+            </div>
+
+            {/* Upay Configuration Card */}
+            <div className="p-6 rounded-2xl bg-slate-900 border border-teal-500/30 space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg bg-teal-600/20 flex items-center justify-center text-teal-400 font-black">
+                    U
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-white text-sm">Upay Payment Settings</h3>
+                    <p className="text-[11px] text-teal-300">UCB Upay — Send Money</p>
+                  </div>
+                </div>
+
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <span className="text-xs text-slate-300">Enable Upay</span>
+                  <input
+                    type="checkbox"
+                    checked={paymentSettings.upayEnabled}
+                    onChange={e => setPaymentSettings({ ...paymentSettings, upayEnabled: e.target.checked })}
+                    className="w-4 h-4 text-teal-500 rounded bg-slate-950 border-slate-700"
+                  />
+                </label>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    Upay Payment Number <span className="text-teal-400">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={paymentSettings.upayNumber}
+                    onChange={e => setPaymentSettings({ ...paymentSettings, upayNumber: e.target.value })}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-sm font-mono text-white focus:outline-none focus:ring-1 focus:ring-teal-500"
+                    placeholder="01721216545"
+                  />
+                  <p className="text-[10px] text-slate-500 mt-1">Default: 01721216545</p>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    Upay Payment Type Label
+                  </label>
+                  <input
+                    type="text"
+                    value={paymentSettings.upayType}
+                    onChange={e => setPaymentSettings({ ...paymentSettings, upayType: e.target.value })}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-sm text-white focus:outline-none focus:ring-1 focus:ring-teal-500"
+                    placeholder="Send Money"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">
+                  Upay Customer Instructions
+                </label>
+                <textarea
+                  rows={3}
+                  value={paymentSettings.upayInstructions}
+                  onChange={e => setPaymentSettings({ ...paymentSettings, upayInstructions: e.target.value })}
+                  className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:ring-1 focus:ring-teal-500"
+                />
+              </div>
             </div>
 
             {/* bKash Configuration Card */}
@@ -1292,7 +1573,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onOpenInvoice }) => {
                     ৳
                   </div>
                   <div>
-                    <h3 className="font-bold text-white text-sm">bKash Manual Payment Settings</h3>
+                    <h3 className="font-bold text-white text-sm">bKash Payment Settings</h3>
                     <p className="text-[11px] text-pink-300">Send Money / Manual Transfer</p>
                   </div>
                 </div>
@@ -1318,9 +1599,9 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onOpenInvoice }) => {
                     value={paymentSettings.bkashNumber}
                     onChange={e => setPaymentSettings({ ...paymentSettings, bkashNumber: e.target.value })}
                     className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-sm font-mono text-white focus:outline-none focus:ring-1 focus:ring-pink-500"
-                    placeholder="01761861680"
+                    placeholder="01721216545"
                   />
-                  <p className="text-[10px] text-slate-500 mt-1">Default: 01761861680</p>
+                  <p className="text-[10px] text-slate-500 mt-1">Default: 01721216545</p>
                 </div>
 
                 <div>
@@ -1332,7 +1613,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onOpenInvoice }) => {
                     value={paymentSettings.bkashType}
                     onChange={e => setPaymentSettings({ ...paymentSettings, bkashType: e.target.value })}
                     className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-sm text-white focus:outline-none focus:ring-1 focus:ring-pink-500"
-                    placeholder="Manual Payment / Send Money"
+                    placeholder="Send Money"
                   />
                 </div>
               </div>
@@ -1342,7 +1623,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onOpenInvoice }) => {
                   bKash Payment Instructions shown to Customer
                 </label>
                 <textarea
-                  rows={4}
+                  rows={3}
                   value={paymentSettings.bkashInstructions}
                   onChange={e => setPaymentSettings({ ...paymentSettings, bkashInstructions: e.target.value })}
                   className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:ring-1 focus:ring-pink-500"
@@ -1350,130 +1631,60 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onOpenInvoice }) => {
               </div>
             </div>
 
-            {/* Nagad Configuration Card */}
-            <div className="p-6 rounded-2xl bg-slate-900 border border-orange-500/30 space-y-4">
+            {/* Delivery Charges Card inside Payment Settings */}
+            <div className="p-6 rounded-2xl bg-slate-900 border border-cyan-500/30 space-y-4">
               <div className="flex items-center justify-between pb-3 border-b border-slate-800">
                 <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-lg bg-orange-600/20 flex items-center justify-center text-orange-400 font-black">
-                    ৳
-                  </div>
+                  <Truck className="w-5 h-5 text-cyan-400" />
                   <div>
-                    <h3 className="font-bold text-white text-sm">Nagad Payment Settings</h3>
-                    <p className="text-[11px] text-orange-300">Configurable Nagad Account</p>
+                    <h3 className="font-bold text-white text-sm">Advance Delivery Charges</h3>
+                    <p className="text-[11px] text-cyan-300">
+                      Customers pay this delivery charge in advance via Send Money; remaining product price is paid as Cash on Delivery
+                    </p>
                   </div>
                 </div>
-
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <span className="text-xs text-slate-300">Enable Nagad</span>
-                  <input
-                    type="checkbox"
-                    checked={paymentSettings.nagadEnabled}
-                    onChange={e => setPaymentSettings({ ...paymentSettings, nagadEnabled: e.target.checked })}
-                    className="w-4 h-4 text-orange-500 rounded bg-slate-950 border-slate-700"
-                  />
-                </label>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-slate-300 mb-1">
-                    Nagad Number (Default: Not configured)
-                  </label>
-                  <input
-                    type="text"
-                    value={paymentSettings.nagadNumber}
-                    onChange={e => setPaymentSettings({ ...paymentSettings, nagadNumber: e.target.value })}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-sm font-mono text-white focus:outline-none focus:ring-1 focus:ring-orange-500"
-                    placeholder="Enter Nagad number or keep 'Not configured'"
-                  />
-                  <p className="text-[10px] text-slate-500 mt-1">
-                    If set to "Not configured", customers will see that Nagad is currently awaiting setup.
-                  </p>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">
-                    Nagad Payment Type Label
-                  </label>
-                  <input
-                    type="text"
-                    value={paymentSettings.nagadType}
-                    onChange={e => setPaymentSettings({ ...paymentSettings, nagadType: e.target.value })}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-sm text-white focus:outline-none focus:ring-1 focus:ring-orange-500"
-                    placeholder="Manual Payment / Send Money"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">
-                  Nagad Payment Instructions
-                </label>
-                <textarea
-                  rows={3}
-                  value={paymentSettings.nagadInstructions}
-                  onChange={e => setPaymentSettings({ ...paymentSettings, nagadInstructions: e.target.value })}
-                  className="w-full px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none focus:ring-1 focus:ring-orange-500"
-                />
-              </div>
-            </div>
-
-            {/* Cash on Delivery Configuration Card */}
-            <div className="p-6 rounded-2xl bg-slate-900 border border-slate-800 space-y-4">
-              <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-                <div className="flex items-center gap-2">
-                  <Truck className="w-5 h-5 text-emerald-400" />
-                  <h3 className="font-bold text-white text-sm">Cash on Delivery (COD)</h3>
-                </div>
-
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <span className="text-xs text-slate-300">Enable Cash on Delivery</span>
-                  <input
-                    type="checkbox"
-                    checked={paymentSettings.codEnabled}
-                    onChange={e => setPaymentSettings({ ...paymentSettings, codEnabled: e.target.checked })}
-                    className="w-4 h-4 text-emerald-500 rounded bg-slate-950 border-slate-700"
-                  />
-                </label>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">
-                    Extra COD Handling Charge ({currency})
+                    Inside Dhaka Delivery Charge ({currency})
                   </label>
                   <input
                     type="number"
-                    value={paymentSettings.codCharge}
-                    onChange={e => setPaymentSettings({ ...paymentSettings, codCharge: Number(e.target.value) })}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-sm font-mono text-white focus:outline-none"
+                    min={0}
+                    value={deliverySettings.insideDhakaCharge}
+                    onChange={e => setDeliverySettings({ ...deliverySettings, insideDhakaCharge: Number(e.target.value) })}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-sm font-mono text-white focus:outline-none focus:ring-1 focus:ring-cyan-500"
                   />
-                  <p className="text-[10px] text-slate-500 mt-1">Set to 0 for standard free COD handling.</p>
                 </div>
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-300 mb-1">
-                    Minimum Order Amount for Checkout ({currency})
+                    Outside Dhaka Delivery Charge ({currency})
                   </label>
                   <input
                     type="number"
-                    value={paymentSettings.minOrderAmount}
-                    onChange={e => setPaymentSettings({ ...paymentSettings, minOrderAmount: Number(e.target.value) })}
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-sm font-mono text-white focus:outline-none"
+                    min={0}
+                    value={deliverySettings.outsideDhakaCharge}
+                    onChange={e => setDeliverySettings({ ...deliverySettings, outsideDhakaCharge: Number(e.target.value) })}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-sm font-mono text-white focus:outline-none focus:ring-1 focus:ring-cyan-500"
                   />
                 </div>
-              </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">
-                  Cash on Delivery Customer Instructions
-                </label>
-                <input
-                  type="text"
-                  value={paymentSettings.codInstructions}
-                  onChange={e => setPaymentSettings({ ...paymentSettings, codInstructions: e.target.value })}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white focus:outline-none"
-                />
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                    Free Delivery Threshold ({currency})
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    value={deliverySettings.freeDeliveryThreshold}
+                    onChange={e => setDeliverySettings({ ...deliverySettings, freeDeliveryThreshold: Number(e.target.value) })}
+                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-sm font-mono text-white focus:outline-none focus:ring-1 focus:ring-cyan-500"
+                  />
+                  <p className="text-[10px] text-slate-500 mt-1">0 disables free shipping threshold</p>
+                </div>
               </div>
             </div>
 
@@ -2304,7 +2515,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onOpenInvoice }) => {
             <div className="p-6 rounded-2xl bg-red-950/20 border border-red-900/60 space-y-3">
               <h3 className="font-bold text-red-400 text-sm">System Factory Reset</h3>
               <p className="text-xs text-slate-400 leading-relaxed">
-                Reset all settings, sample products, orders, and payment numbers to default initial states (bKash: 01761861680, Nagad: Not configured).
+                Reset all settings, sample products, orders, and payment numbers to default initial states (Nagad / Rocket / Upay / bKash: 01721216545).
               </p>
               <button
                 type="button"
@@ -2920,11 +3131,52 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onOpenInvoice }) => {
                 </div>
               </div>
 
+              {/* Financial Breakdown Box */}
+              {(() => {
+                const advancePaid =
+                  selectedOrderDetails.advanceAmount ??
+                  (selectedOrderDetails.paymentMethod === 'cod'
+                    ? 0
+                    : selectedOrderDetails.deliveryCharge);
+                const codRemaining =
+                  selectedOrderDetails.remainingCodAmount ??
+                  Math.max(0, selectedOrderDetails.total - advancePaid);
+
+                return (
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-4 rounded-xl bg-slate-950 border border-slate-800">
+                    <div>
+                      <span className="text-[11px] text-slate-400 block">Product Price</span>
+                      <span className="font-mono font-bold text-white text-sm">
+                        {currency}{selectedOrderDetails.subtotal.toLocaleString()}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-[11px] text-slate-400 block">Delivery Charge</span>
+                      <span className="font-mono font-bold text-white text-sm">
+                        {currency}{selectedOrderDetails.deliveryCharge.toLocaleString()}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-[11px] text-emerald-400 block">Advance Paid</span>
+                      <span className="font-mono font-bold text-emerald-300 text-sm">
+                        {currency}{advancePaid.toLocaleString()}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-[11px] text-amber-400 block">Remaining COD</span>
+                      <span className="font-mono font-bold text-amber-300 text-sm">
+                        {currency}{codRemaining.toLocaleString()}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })()}
+
               {/* Payment Verification Box */}
-              <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-2">
+              <div className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="font-bold text-slate-300 uppercase tracking-wider">
-                    Manual Payment Verification
+                    Order Payment Verification
                   </span>
                   <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
                     selectedOrderDetails.paymentStatus === 'Verified'
@@ -2937,20 +3189,93 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onOpenInvoice }) => {
                   </span>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2 pt-1 text-slate-300">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1 text-slate-300">
                   <div>
-                    <span className="text-slate-500">Method:</span>{' '}
+                    <span className="text-slate-500">Selected Method:</span>{' '}
                     <span className="font-bold uppercase text-white">{selectedOrderDetails.paymentMethod}</span>
                   </div>
                   <div>
-                    <span className="text-slate-500">Transaction ID:</span>{' '}
-                    <span className="font-mono text-cyan-400 font-bold">{selectedOrderDetails.transactionId || 'N/A'}</span>
+                    <span className="text-slate-500">Payment Amount (Advance):</span>{' '}
+                    <span className="font-mono font-bold text-emerald-300">
+                      {currency}
+                      {(
+                        selectedOrderDetails.advanceAmount ??
+                        (selectedOrderDetails.paymentMethod === 'cod'
+                          ? 0
+                          : selectedOrderDetails.deliveryCharge)
+                      ).toLocaleString()}
+                    </span>
                   </div>
-                  {selectedOrderDetails.paymentPhoneNumber && (
-                    <div className="col-span-2">
-                      <span className="text-slate-500">Customer Payment Phone:</span>{' '}
-                      <span className="font-mono text-white font-bold">{selectedOrderDetails.paymentPhoneNumber}</span>
-                    </div>
+                  <div>
+                    <span className="text-slate-500">Sender Mobile Number:</span>{' '}
+                    <span className="font-mono text-white font-bold">
+                      {selectedOrderDetails.paymentPhoneNumber || 'Not provided'}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500">Transaction ID (TrxID):</span>{' '}
+                    <span className="font-mono text-cyan-400 font-bold">
+                      {selectedOrderDetails.transactionId || 'Not provided'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Uploaded Payment Screenshot Viewer */}
+                <div className="pt-2 border-t border-slate-800/80 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                      <ImageIcon className="w-3.5 h-3.5 text-cyan-400" />
+                      <span>Uploaded Payment Screenshot</span>
+                    </span>
+                    {screenshotViewUrl && (
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setIsScreenshotZoomed(true)}
+                          className="px-2.5 py-1 rounded-lg bg-cyan-950 hover:bg-cyan-900 border border-cyan-800 text-cyan-300 text-[11px] font-semibold flex items-center gap-1 cursor-pointer"
+                        >
+                          <Maximize2 className="w-3 h-3" />
+                          <span>Zoom Preview</span>
+                        </button>
+                        <a
+                          href={screenshotViewUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-[11px] font-semibold flex items-center gap-1"
+                        >
+                          <ExternalLink className="w-3 h-3" />
+                          <span>Open Original</span>
+                        </a>
+                      </div>
+                    )}
+                  </div>
+
+                  {selectedOrderDetails.paymentScreenshotUrl ? (
+                    screenshotLoading ? (
+                      <div className="p-4 rounded-xl bg-slate-900 border border-slate-800 text-center text-slate-400">
+                        Loading secure payment screenshot...
+                      </div>
+                    ) : screenshotViewUrl && !screenshotLoadError ? (
+                      <div
+                        onClick={() => setIsScreenshotZoomed(true)}
+                        className="rounded-xl overflow-hidden border border-slate-800 bg-slate-900 cursor-zoom-in max-h-64 flex items-center justify-center"
+                      >
+                        <img
+                          src={screenshotViewUrl}
+                          alt={`Payment screenshot for order ${selectedOrderDetails.id}`}
+                          className="max-h-64 w-auto object-contain"
+                          onError={() => setScreenshotLoadError(true)}
+                        />
+                      </div>
+                    ) : (
+                      <div className="p-3 rounded-xl bg-amber-950/30 border border-amber-800/70 text-amber-300 text-[11px]">
+                        Screenshot reference is attached ({selectedOrderDetails.paymentScreenshotUrl}), but image preview could not be loaded. Ensure Supabase storage policy in 003_payment_system.sql is active.
+                      </div>
+                    )
+                  ) : (
+                    <p className="text-[11px] text-slate-500 italic">
+                      No payment screenshot uploaded for this order.
+                    </p>
                   )}
                 </div>
 
@@ -2975,6 +3300,32 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ onOpenInvoice }) => {
                   </button>
                 </div>
               </div>
+
+              {isScreenshotZoomed && screenshotViewUrl && (
+                <div
+                  className="fixed inset-0 z-[60] bg-slate-950/95 backdrop-blur-sm flex items-center justify-center p-4"
+                  onClick={() => setIsScreenshotZoomed(false)}
+                >
+                  <div
+                    className="relative max-w-4xl max-h-[90vh] flex flex-col items-center gap-3"
+                    onClick={e => e.stopPropagation()}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setIsScreenshotZoomed(false)}
+                      className="self-end px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold flex items-center gap-1.5"
+                    >
+                      <X className="w-4 h-4" />
+                      <span>Close Preview</span>
+                    </button>
+                    <img
+                      src={screenshotViewUrl}
+                      alt={`Full payment screenshot for order ${selectedOrderDetails.id}`}
+                      className="max-h-[82vh] max-w-full rounded-2xl border border-slate-700 object-contain shadow-2xl"
+                    />
+                  </div>
+                </div>
+              )}
 
               {/* Items */}
               <div className="space-y-2">

@@ -57,6 +57,7 @@ const supabaseAnonKey = normalizeEnv(
 );
 
 export const SUPABASE_STORAGE_BUCKET = 'product-images';
+export const PAYMENT_SCREENSHOTS_BUCKET = 'payment-screenshots';
 
 export const isSupabaseConfigured = Boolean(
   supabaseUrl &&

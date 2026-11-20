@@ -21,6 +21,7 @@ import {
   supabase,
   isSupabaseConfigured,
   SUPABASE_STORAGE_BUCKET,
+  PAYMENT_SCREENSHOTS_BUCKET,
 } from '../lib/supabase';
 
 interface AdminUser {
@@ -73,8 +74,10 @@ interface StoreContextType {
     paymentMethod: PaymentMethod;
     paymentPhoneNumber?: string;
     transactionId?: string;
+    paymentScreenshotFile?: File | null;
   }) => Promise<Order>;
   trackOrderByQuery: (query: string) => Promise<Order | null>;
+  getPaymentScreenshotUrl: (screenshotRef?: string) => Promise<string | null>;
 
   // Admin Actions
   loginAdmin: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
@@ -214,28 +217,48 @@ const mapProductToRow = (product: Product) => ({
   created_at: product.createdAt || new Date().toISOString(),
 });
 
-const mapRowToOrder = (row: any): Order => ({
-  id: String(row.id),
-  customerName: row.customer_name || '',
-  phone: row.phone || '',
-  email: row.email || '',
-  address: row.address || '',
-  district: row.district || '',
-  thana: row.thana || '',
-  notes: row.notes || undefined,
-  items: Array.isArray(row.items) ? row.items : [],
-  subtotal: Number(row.subtotal) || 0,
-  deliveryCharge: Number(row.delivery_charge) || 0,
-  total: Number(row.total) || 0,
-  paymentMethod: row.payment_method || 'cod',
-  paymentStatus: row.payment_status || 'Pending',
-  paymentPhoneNumber: row.payment_phone_number || undefined,
-  transactionId: row.transaction_id || undefined,
-  orderStatus: row.order_status || 'Pending',
-  createdAt: row.created_at || new Date().toISOString(),
-  updatedAt: row.updated_at || new Date().toISOString(),
-  timeline: Array.isArray(row.timeline) ? row.timeline : [],
-});
+const mapRowToOrder = (row: any): Order => {
+  const subtotal = Number(row.subtotal) || 0;
+  const deliveryCharge = Number(row.delivery_charge) || 0;
+  const total = Number(row.total) || 0;
+  const paymentMethod: PaymentMethod = row.payment_method || 'cod';
+  const advanceAmount =
+    row.advance_amount !== null && row.advance_amount !== undefined
+      ? Number(row.advance_amount)
+      : paymentMethod === 'cod'
+      ? 0
+      : deliveryCharge;
+  const remainingCodAmount =
+    row.remaining_cod_amount !== null && row.remaining_cod_amount !== undefined
+      ? Number(row.remaining_cod_amount)
+      : Math.max(0, total - advanceAmount);
+
+  return {
+    id: String(row.id),
+    customerName: row.customer_name || '',
+    phone: row.phone || '',
+    email: row.email || '',
+    address: row.address || '',
+    district: row.district || '',
+    thana: row.thana || '',
+    notes: row.notes || undefined,
+    items: Array.isArray(row.items) ? row.items : [],
+    subtotal,
+    deliveryCharge,
+    advanceAmount,
+    remainingCodAmount,
+    total,
+    paymentMethod,
+    paymentStatus: row.payment_status || 'Pending',
+    paymentPhoneNumber: row.payment_phone_number || undefined,
+    transactionId: row.transaction_id || undefined,
+    paymentScreenshotUrl: row.payment_screenshot_url || undefined,
+    orderStatus: row.order_status || 'Pending',
+    createdAt: row.created_at || new Date().toISOString(),
+    updatedAt: row.updated_at || new Date().toISOString(),
+    timeline: Array.isArray(row.timeline) ? row.timeline : [],
+  };
+};
 
 const mapOrderToRow = (order: Order) => ({
   id: order.id,
@@ -249,11 +272,14 @@ const mapOrderToRow = (order: Order) => ({
   items: order.items,
   subtotal: order.subtotal,
   delivery_charge: order.deliveryCharge,
+  advance_amount: order.advanceAmount ?? 0,
+  remaining_cod_amount: order.remainingCodAmount ?? order.subtotal,
   total: order.total,
   payment_method: order.paymentMethod,
   payment_status: order.paymentStatus,
   payment_phone_number: order.paymentPhoneNumber || null,
   transaction_id: order.transactionId || null,
+  payment_screenshot_url: order.paymentScreenshotUrl || null,
   order_status: order.orderStatus,
   timeline: order.timeline,
   created_at: order.createdAt,
@@ -1481,6 +1507,94 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   // ORDERS & TRACKING
   // ====================================================
 
+  const uploadPaymentScreenshot = async (file: File, orderId: string): Promise<string> => {
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+    const lowerName = file.name.toLowerCase();
+    const validExt = /\.(jpg|jpeg|png|webp)$/.test(lowerName);
+    if (!allowedTypes.includes(file.type.toLowerCase()) && !validExt) {
+      throw new Error('Please upload a JPG, JPEG, PNG, or WEBP screenshot.');
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      throw new Error('Payment screenshot must be less than 5MB.');
+    }
+
+    if (isSupabaseConfigured && supabase) {
+      const rawExt = lowerName.split('.').pop() || '';
+      const ext = ['jpg', 'jpeg', 'png', 'webp'].includes(rawExt) ? rawExt : 'jpg';
+      const uniquePath = `orders/${orderId}/${Date.now()}_${Math.random().toString(36).slice(2, 10)}.${ext}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from(PAYMENT_SCREENSHOTS_BUCKET)
+        .upload(uniquePath, file, {
+          cacheControl: '3600',
+          upsert: false,
+          contentType: file.type || `image/${ext === 'jpg' ? 'jpeg' : ext}`,
+        });
+
+      if (uploadError) {
+        if (
+          uploadError.message?.toLowerCase().includes('bucket') ||
+          uploadError.message?.toLowerCase().includes('row-level security')
+        ) {
+          throw new Error(
+            'Payment screenshot storage is not configured in Supabase yet. Run migration 003_payment_system.sql in Supabase SQL Editor.'
+          );
+        }
+        throw new Error(uploadError.message || 'Failed to upload payment screenshot.');
+      }
+
+      return `storage://${PAYMENT_SCREENSHOTS_BUCKET}/${uniquePath}`;
+    }
+
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = async () => {
+        try {
+          const res = await fetch('/api/upload-payment-proof', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              orderId,
+              fileName: file.name,
+              fileType: file.type || 'image/png',
+              fileData: reader.result,
+            }),
+          });
+
+          if (!res.ok) {
+            const data = await res.json().catch(() => ({}));
+            throw new Error(data.error || 'Payment screenshot upload failed.');
+          }
+
+          const data = await res.json();
+          resolve(data.url);
+        } catch (err) {
+          reject(err);
+        }
+      };
+      reader.onerror = () => reject(new Error('Failed to read payment screenshot file.'));
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const getPaymentScreenshotUrl = useCallback(async (screenshotRef?: string): Promise<string | null> => {
+    if (!screenshotRef) return null;
+    const prefix = `storage://${PAYMENT_SCREENSHOTS_BUCKET}/`;
+    if (screenshotRef.startsWith(prefix)) {
+      if (!isSupabaseConfigured || !supabase) return null;
+      const objectPath = screenshotRef.slice(prefix.length);
+      const { data, error } = await supabase.storage
+        .from(PAYMENT_SCREENSHOTS_BUCKET)
+        .createSignedUrl(objectPath, 3600);
+      if (error || !data?.signedUrl) {
+        console.error('Failed to generate signed URL for payment screenshot:', error);
+        return null;
+      }
+      return data.signedUrl;
+    }
+    return screenshotRef;
+  }, []);
+
   const placeOrder = async (orderData: {
     customerName: string;
     phone: string;
@@ -1492,7 +1606,17 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     paymentMethod: PaymentMethod;
     paymentPhoneNumber?: string;
     transactionId?: string;
+    paymentScreenshotFile?: File | null;
   }): Promise<Order> => {
+    const cleanTrxId = orderData.transactionId?.trim().toUpperCase() || '';
+    const hasScreenshot = Boolean(orderData.paymentScreenshotFile);
+
+    if (orderData.paymentMethod !== 'cod' && !cleanTrxId && !hasScreenshot) {
+      throw new Error(
+        'আপনার পেমেন্ট নিশ্চিত করতে Transaction ID অথবা Payment Screenshot যেকোনো একটি প্রদান করুন।'
+      );
+    }
+
     const prefix = settings.store?.orderPrefix || 'DXS';
     const randomSuffix = Math.floor(10000 + Math.random() * 90000);
     const orderId = `${prefix}-${randomSuffix}`;
@@ -1513,7 +1637,22 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       deliveryFee += settings.payment.codCharge;
     }
 
+    const advanceAmount = orderData.paymentMethod === 'cod' ? 0 : deliveryFee;
+    const remainingCodAmount =
+      orderData.paymentMethod === 'cod' ? cartSubtotal + deliveryFee : cartSubtotal;
     const grandTotal = cartSubtotal + deliveryFee;
+
+    let uploadedScreenshotRef: string | undefined;
+    if (orderData.paymentScreenshotFile) {
+      uploadedScreenshotRef = await uploadPaymentScreenshot(
+        orderData.paymentScreenshotFile,
+        orderId
+      );
+    }
+
+    const proofParts: string[] = [];
+    if (cleanTrxId) proofParts.push(`TrxID: ${cleanTrxId}`);
+    if (uploadedScreenshotRef) proofParts.push('Screenshot uploaded');
 
     const newOrder: Order = {
       id: orderId,
@@ -1537,11 +1676,14 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       })),
       subtotal: cartSubtotal,
       deliveryCharge: deliveryFee,
+      advanceAmount,
+      remainingCodAmount,
       total: grandTotal,
       paymentMethod: orderData.paymentMethod,
       paymentStatus: 'Pending',
-      paymentPhoneNumber: orderData.paymentPhoneNumber,
-      transactionId: orderData.transactionId,
+      paymentPhoneNumber: orderData.paymentPhoneNumber?.trim() || undefined,
+      transactionId: cleanTrxId || undefined,
+      paymentScreenshotUrl: uploadedScreenshotRef,
       orderStatus: 'Pending',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -1549,8 +1691,8 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         {
           status: 'Order Placed',
           timestamp: new Date().toISOString(),
-          note: `Order submitted via website. Payment method: ${orderData.paymentMethod.toUpperCase()}${
-            orderData.transactionId ? ` (TrxID: ${orderData.transactionId})` : ''
+          note: `Order submitted via website. Method: ${orderData.paymentMethod.toUpperCase()} | Advance: ৳${advanceAmount} | COD Due: ৳${remainingCodAmount}${
+            proofParts.length > 0 ? ` (${proofParts.join(', ')})` : ''
           }`,
         },
       ],
@@ -1560,6 +1702,16 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const { error } = await supabase.from('orders').insert(mapOrderToRow(newOrder));
       if (error) {
         console.error('Supabase order insert error:', error);
+        if (
+          error.code === 'PGRST204' ||
+          error.code === '23514' ||
+          error.message?.includes('payment_method') ||
+          error.message?.includes('advance_amount')
+        ) {
+          throw new Error(
+            'Database schema update required. Please run supabase/migrations/003_payment_system.sql in Supabase SQL Editor.'
+          );
+        }
         throw new Error(error.message || 'Failed to submit order to database.');
       }
     } else {
@@ -1828,6 +1980,7 @@ export const StoreProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         cartCount,
         placeOrder,
         trackOrderByQuery,
+        getPaymentScreenshotUrl,
         loginAdmin,
         logoutAdmin,
         changeAdminPassword,

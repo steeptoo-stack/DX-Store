@@ -10,7 +10,7 @@ export const PromoBanner: React.FC = () => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 my-12">
-      <div className="relative rounded-3xl overflow-hidden border border-cyan-500/30 bg-gradient-to-r from-cyan-950 via-slate-900 to-blue-950 shadow-2xl shadow-cyan-950/30">
+      <div className="relative rounded-3xl overflow-hidden border border-cyan-500/30 bg-gradient-to-r from-cyan-950/80 via-slate-900/80 to-blue-950/80 backdrop-blur-sm shadow-2xl shadow-cyan-950/30">
         <div className="grid grid-cols-1 lg:grid-cols-12 items-center">
           
           <div className="lg:col-span-8 p-8 sm:p-12 space-y-4">

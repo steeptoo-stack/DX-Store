@@ -1,1 +1,11 @@
 @import "tailwindcss";
+
+.dx-site-bg {
+  background-image:
+    linear-gradient(rgba(2, 6, 23, 0.35), rgba(2, 6, 23, 0.48)),
+    url('https://images.wallpaperscraft.com/image/single/building_bottom_view_architecture_346048_2560x1024.jpg?utm_source=chatgpt.com');
+  background-size: cover;
+  background-position: center center;
+  background-repeat: no-repeat;
+}
+

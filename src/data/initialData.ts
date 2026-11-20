@@ -22,26 +22,41 @@ export const initialStoreSettings: StoreSettings = {
     supportMessage: "Contact our technical surveillance engineers anytime for custom security consultation and instant quotation."
   },
   payment: {
-    codEnabled: true,
+    codEnabled: false,
     codCharge: 0,
-    codInstructions: "Pay cash in hand to the delivery courier after verifying your security equipment package.",
+    codInstructions: "Pay the remaining product price in cash to the delivery courier upon receiving your package.",
     bkashEnabled: true,
-    bkashNumber: "01761861680",
-    bkashType: "Manual Payment / Send Money",
+    bkashNumber: "01721216545",
+    bkashType: "Send Money",
     bkashInstructions: `1. Open your bKash Mobile App and select 'Send Money'.
-2. Enter our bKash Personal Number: 01761861680.
-3. Enter the total bill amount.
-4. In Reference, enter your Phone Number or Name.
-5. Enter your bKash PIN to confirm transaction.
-6. Copy the Transaction ID (TrxID) and enter it below along with your sender bKash number.`,
+2. Enter our bKash Personal Number shown above.
+3. Send ONLY the Delivery Charge amount in advance.
+4. Put your Phone Number in the Reference.
+5. Provide your Transaction ID (TrxID) OR upload a Payment Screenshot below.`,
     nagadEnabled: true,
-    nagadNumber: "Not configured",
-    nagadType: "Manual Payment / Send Money",
+    nagadNumber: "01721216545",
+    nagadType: "Send Money",
     nagadInstructions: `1. Open your Nagad Mobile App and tap 'Send Money'.
-2. Enter the displayed Nagad Number.
-3. Enter the total payable amount.
-4. Put your contact number in reference.
-5. Complete transaction and enter the Transaction ID (TrxID) below.`,
+2. Enter our Nagad Personal Number shown above.
+3. Send ONLY the Delivery Charge amount in advance.
+4. Put your Phone Number in the Reference.
+5. Provide your Transaction ID (TrxID) OR upload a Payment Screenshot below.`,
+    rocketEnabled: true,
+    rocketNumber: "01721216545",
+    rocketType: "Send Money",
+    rocketInstructions: `1. Open your Rocket Mobile App or dial *322# and choose 'Send Money'.
+2. Enter our Rocket Personal Number shown above.
+3. Send ONLY the Delivery Charge amount in advance.
+4. Put your Phone Number in the Reference.
+5. Provide your Transaction ID (TrxID) OR upload a Payment Screenshot below.`,
+    upayEnabled: true,
+    upayNumber: "01721216545",
+    upayType: "Send Money",
+    upayInstructions: `1. Open your Upay Mobile App and tap 'Send Money'.
+2. Enter our Upay Personal Number shown above.
+3. Send ONLY the Delivery Charge amount in advance.
+4. Put your Phone Number in the Reference.
+5. Provide your Transaction ID (TrxID) OR upload a Payment Screenshot below.`,
     minOrderAmount: 0
   },
   delivery: {
@@ -417,6 +432,8 @@ export const initialOrders: Order[] = [
     ],
     subtotal: 21800,
     deliveryCharge: 80,
+    advanceAmount: 80,
+    remainingCodAmount: 21800,
     total: 21880,
     paymentMethod: "bkash",
     paymentStatus: "Verified",
@@ -453,6 +470,8 @@ export const initialOrders: Order[] = [
     ],
     subtotal: 5700,
     deliveryCharge: 150,
+    advanceAmount: 0,
+    remainingCodAmount: 5850,
     total: 5850,
     paymentMethod: "cod",
     paymentStatus: "Pending",
@@ -472,7 +491,7 @@ export const initialOrders: Order[] = [
     address: "Block C, Bashundhara R/A",
     district: "Dhaka",
     thana: "Bhatara",
-    notes: "New bKash submission waiting for verification",
+    notes: "New Nagad submission waiting for verification",
     items: [
       {
         productId: "prod-3",
@@ -485,11 +504,13 @@ export const initialOrders: Order[] = [
     ],
     subtotal: 6200,
     deliveryCharge: 80,
+    advanceAmount: 80,
+    remainingCodAmount: 6200,
     total: 6280,
-    paymentMethod: "bkash",
+    paymentMethod: "nagad",
     paymentStatus: "Pending",
     paymentPhoneNumber: "01911223344",
-    transactionId: "BK7K3921AA",
+    transactionId: "NG7K3921AA",
     orderStatus: "Pending",
     createdAt: "2026-10-07T10:10:00Z",
     updatedAt: "2026-10-07T10:10:00Z",

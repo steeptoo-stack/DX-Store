@@ -15,6 +15,7 @@ const DATA_FILE = path.join(DATA_DIR, 'store_data.json');
 const AUTH_FILE = path.join(DATA_DIR, 'auth.json');
 const UPLOADS_DIR = path.resolve(__dirname, 'uploads');
 const PRODUCT_UPLOADS_DIR = path.join(UPLOADS_DIR, 'products');
+const PAYMENT_UPLOADS_DIR = path.join(UPLOADS_DIR, 'payment-screenshots');
 
 // Ensure data & upload directories exist
 if (!fs.existsSync(DATA_DIR)) {
@@ -22,6 +23,9 @@ if (!fs.existsSync(DATA_DIR)) {
 }
 if (!fs.existsSync(PRODUCT_UPLOADS_DIR)) {
   fs.mkdirSync(PRODUCT_UPLOADS_DIR, { recursive: true });
+}
+if (!fs.existsSync(PAYMENT_UPLOADS_DIR)) {
+  fs.mkdirSync(PAYMENT_UPLOADS_DIR, { recursive: true });
 }
 
 // In-memory active sessions: token -> { email: string, expiresAt: number }
@@ -387,6 +391,42 @@ async function startServer() {
       res.json({ success: true });
     } catch (err) {
       res.status(500).json({ error: 'Failed to delete image.' });
+    }
+  });
+
+  // POST /api/upload-payment-proof (Checkout payment screenshot upload fallback)
+  app.post('/api/upload-payment-proof', (req, res) => {
+    try {
+      const { orderId, fileType, fileData } = req.body;
+      if (!fileData || !fileType) {
+        return res.status(400).json({ error: 'Screenshot data is required.' });
+      }
+
+      const allowedMimes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+      const normalizedType = String(fileType).toLowerCase();
+      if (!allowedMimes.includes(normalizedType)) {
+        return res.status(400).json({ error: 'Please upload a JPG, JPEG, PNG, or WEBP image.' });
+      }
+
+      const base64Data = String(fileData).replace(/^data:image\/\w+;base64,/, '');
+      const buffer = Buffer.from(base64Data, 'base64');
+      if (buffer.length > 5 * 1024 * 1024) {
+        return res.status(400).json({ error: 'Screenshot size must be less than 5MB.' });
+      }
+
+      let ext = 'jpg';
+      if (normalizedType.includes('png')) ext = 'png';
+      else if (normalizedType.includes('webp')) ext = 'webp';
+
+      const safeOrder = String(orderId || 'order').replace(/[^a-zA-Z0-9_-]/g, '');
+      const safeFileName = `${safeOrder}_${Date.now()}_${crypto.randomBytes(6).toString('hex')}.${ext}`;
+      const filePath = path.join(PAYMENT_UPLOADS_DIR, safeFileName);
+      fs.writeFileSync(filePath, buffer);
+
+      res.json({ success: true, url: `/uploads/payment-screenshots/${safeFileName}` });
+    } catch (err) {
+      console.error('Payment proof upload failed:', err);
+      res.status(500).json({ error: 'Failed to upload payment screenshot.' });
     }
   });
 

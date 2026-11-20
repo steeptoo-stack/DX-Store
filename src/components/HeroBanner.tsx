@@ -7,7 +7,7 @@ export const HeroBanner: React.FC = () => {
   const hp = settings.homepage;
 
   return (
-    <div className="relative overflow-hidden bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 border-b border-slate-800/60 py-12 lg:py-20">
+    <div className="relative overflow-hidden bg-gradient-to-b from-slate-950/15 via-transparent to-slate-950/25 border-b border-slate-800/50 py-12 lg:py-20">
       {/* Background Glows */}
       <div className="absolute top-1/4 left-1/4 -translate-x-1/2 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute bottom-10 right-10 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl pointer-events-none" />

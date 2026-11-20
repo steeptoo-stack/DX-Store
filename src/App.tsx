@@ -160,7 +160,13 @@ const MainApp: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col selection:bg-cyan-500 selection:text-white">
+    <div className="relative min-h-screen text-slate-100 flex flex-col selection:bg-cyan-500 selection:text-white">
+      {/* Global Responsive Website Background */}
+      <div
+        aria-hidden="true"
+        className="dx-site-bg fixed inset-0 pointer-events-none z-0"
+      />
+
       {/* 1. Editable Announcement Bar */}
       <AnnouncementBar />
 
@@ -190,7 +196,7 @@ const MainApp: React.FC = () => {
       )}
 
       {/* 3. Main Views */}
-      <main className="flex-1">
+      <main className="relative z-10 flex-1">
         {/* VIEW: HOME */}
         {activeView === 'home' && (
           <div className="space-y-12 pb-16">
@@ -205,7 +211,7 @@ const MainApp: React.FC = () => {
                   className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
                     selectedCategory === 'ALL'
                       ? 'bg-cyan-500 text-slate-950 shadow-md shadow-cyan-500/20'
-                      : 'bg-slate-900 text-slate-300 hover:bg-slate-800 border border-slate-800'
+                      : 'bg-slate-900/75 backdrop-blur-sm text-slate-200 hover:bg-slate-800/90 border border-slate-800'
                   }`}
                 >
                   All Categories ({visibleProducts.length})
@@ -217,7 +223,7 @@ const MainApp: React.FC = () => {
                     className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
                       selectedCategory.toLowerCase() === catName.toLowerCase()
                         ? 'bg-cyan-500 text-slate-950 shadow-md shadow-cyan-500/20'
-                        : 'bg-slate-900 text-slate-300 hover:bg-slate-800 border border-slate-800'
+                        : 'bg-slate-900/75 backdrop-blur-sm text-slate-200 hover:bg-slate-800/90 border border-slate-800'
                     }`}
                   >
                     {catName}
@@ -270,7 +276,7 @@ const MainApp: React.FC = () => {
                   <h2 className="text-2xl font-black text-white">
                     Product Catalog
                   </h2>
-                  <p className="text-xs text-slate-400 mt-0.5">
+                  <p className="text-xs text-slate-300 mt-0.5">
                     Showing {filteredProducts.length} products across all categories
                   </p>
                 </div>
@@ -343,7 +349,7 @@ const MainApp: React.FC = () => {
             </div>
 
             {/* Filter controls */}
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 p-4 rounded-2xl bg-slate-900 border border-slate-800">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 p-4 rounded-2xl bg-slate-900/80 backdrop-blur-sm border border-slate-800">
               <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
                 <button
                   onClick={() => setSelectedCategory('ALL')}

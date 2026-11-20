@@ -12,7 +12,7 @@ export const AnnouncementBar: React.FC = () => {
   const phone = settings.contact.phone || '01761861680';
 
   return (
-    <div className="bg-gradient-to-r from-cyan-950 via-slate-900 to-blue-950 text-slate-200 text-xs sm:text-sm py-2 px-4 border-b border-cyan-800/40 relative z-40">
+    <div className="bg-gradient-to-r from-cyan-950/50 via-slate-900/45 to-blue-950/50 backdrop-blur-[2px] text-slate-100 text-xs sm:text-sm py-2 px-4 border-b border-cyan-800/40 relative z-40">
       <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
         <div className="flex items-center gap-2 font-medium tracking-wide text-cyan-200">
           <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-cyan-500/20 text-cyan-400">
