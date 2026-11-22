@@ -1,4 +1,4 @@
-export type PaymentMethod = 'cod' | 'bkash' | 'nagad' | 'rocket' | 'upay';
+export type PaymentMethod = 'cod' | 'bkash' | 'nagad';
 
 export type PaymentStatus = 'Pending' | 'Verified' | 'Rejected';
 
@@ -63,14 +63,11 @@ export interface Order {
   items: OrderItem[];
   subtotal: number;
   deliveryCharge: number;
-  advanceAmount?: number;
-  remainingCodAmount?: number;
   total: number;
   paymentMethod: PaymentMethod;
   paymentStatus: PaymentStatus;
   paymentPhoneNumber?: string;
   transactionId?: string;
-  paymentScreenshotUrl?: string;
   orderStatus: OrderStatus;
   createdAt: string;
   updatedAt: string;
@@ -127,14 +124,6 @@ export interface StoreSettings {
     nagadNumber: string;
     nagadType: string;
     nagadInstructions: string;
-    rocketEnabled: boolean;
-    rocketNumber: string;
-    rocketType: string;
-    rocketInstructions: string;
-    upayEnabled: boolean;
-    upayNumber: string;
-    upayType: string;
-    upayInstructions: string;
     minOrderAmount: number;
   };
   delivery: {

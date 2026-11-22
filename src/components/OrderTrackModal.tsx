@@ -157,62 +157,18 @@ export const OrderTrackModal: React.FC<OrderTrackModalProps> = ({
                   </div>
 
                   {/* Payment Details */}
-                  <div className="p-3.5 bg-slate-900 rounded-xl text-xs space-y-2 border border-slate-800">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="p-3 bg-slate-900 rounded-xl text-xs space-y-1">
+                    <p className="text-slate-400">
+                      Payment Method: <span className="text-white font-semibold uppercase">{searchedOrder.paymentMethod}</span>
+                    </p>
+                    {searchedOrder.transactionId && (
                       <p className="text-slate-400">
-                        Payment Method:{' '}
-                        <span className="text-white font-semibold uppercase">{searchedOrder.paymentMethod}</span>
+                        Transaction ID: <span className="font-mono text-cyan-400 font-bold">{searchedOrder.transactionId}</span>
                       </p>
-                      {searchedOrder.transactionId && (
-                        <p className="text-slate-400">
-                          Transaction ID:{' '}
-                          <span className="font-mono text-cyan-400 font-bold">{searchedOrder.transactionId}</span>
-                        </p>
-                      )}
-                    </div>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-slate-800">
-                      <div>
-                        <span className="text-[11px] text-slate-400 block">Product Price</span>
-                        <span className="font-mono text-white font-bold">
-                          {currency}{searchedOrder.subtotal.toLocaleString()}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-[11px] text-slate-400 block">Delivery Charge</span>
-                        <span className="font-mono text-white font-bold">
-                          {currency}{searchedOrder.deliveryCharge.toLocaleString()}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-[11px] text-emerald-400 block">Advance Paid</span>
-                        <span className="font-mono text-emerald-300 font-bold">
-                          {currency}
-                          {(
-                            searchedOrder.advanceAmount ??
-                            (searchedOrder.paymentMethod === 'cod'
-                              ? 0
-                              : searchedOrder.deliveryCharge)
-                          ).toLocaleString()}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-[11px] text-amber-400 block">Remaining COD</span>
-                        <span className="font-mono text-amber-300 font-bold">
-                          {currency}
-                          {(
-                            searchedOrder.remainingCodAmount ??
-                            Math.max(
-                              0,
-                              searchedOrder.total -
-                                (searchedOrder.advanceAmount ??
-                                  (searchedOrder.paymentMethod === 'cod'
-                                    ? 0
-                                    : searchedOrder.deliveryCharge))
-                            )
-                          ).toLocaleString()}
-                        </span>
-                      </div>
-                    </div>
+                    )}
+                    <p className="text-slate-400">
+                      Total Payable: <span className="font-mono text-white font-bold">{currency}{searchedOrder.total.toLocaleString()}</span>
+                    </p>
                   </div>
 
                   {/* Items in Order */}

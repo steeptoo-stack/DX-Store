@@ -173,71 +173,50 @@ export const InvoiceModal: React.FC<InvoiceModalProps> = ({ order, onClose }) =>
           </div>
 
           {/* Financial Totals & Payment Method */}
-          {(() => {
-            const advancePaid =
-              order.advanceAmount ??
-              (order.paymentMethod === 'cod' ? 0 : order.deliveryCharge);
-            const codRemaining =
-              order.remainingCodAmount ?? Math.max(0, order.total - advancePaid);
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-2">
+            <div className="p-4 rounded-xl bg-slate-900/60 print:bg-slate-100 border border-slate-800 print:border-slate-300 text-xs space-y-1.5">
+              <p className="font-bold text-slate-300 print:text-slate-800 uppercase tracking-wider">
+                Payment Verification Details:
+              </p>
+              <p className="text-slate-400 print:text-slate-600">
+                Method: <span className="text-white print:text-slate-900 font-bold uppercase">{order.paymentMethod}</span>
+              </p>
+              {order.transactionId && (
+                <p className="text-slate-400 print:text-slate-600">
+                  Transaction ID: <span className="font-mono text-cyan-400 print:text-cyan-800 font-bold">{order.transactionId}</span>
+                </p>
+              )}
+              {order.paymentPhoneNumber && (
+                <p className="text-slate-400 print:text-slate-600">
+                  Sender Phone: <span className="font-mono text-white print:text-slate-900">{order.paymentPhoneNumber}</span>
+                </p>
+              )}
+              <p className="text-slate-400 print:text-slate-600">
+                Payment Status: <span className="font-bold text-white print:text-slate-900">{order.paymentStatus}</span>
+              </p>
+            </div>
 
-            return (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-2">
-                <div className="p-4 rounded-xl bg-slate-900/60 print:bg-slate-100 border border-slate-800 print:border-slate-300 text-xs space-y-1.5">
-                  <p className="font-bold text-slate-300 print:text-slate-800 uppercase tracking-wider">
-                    Payment Verification Details:
-                  </p>
-                  <p className="text-slate-400 print:text-slate-600">
-                    Method: <span className="text-white print:text-slate-900 font-bold uppercase">{order.paymentMethod}</span>
-                  </p>
-                  {order.transactionId && (
-                    <p className="text-slate-400 print:text-slate-600">
-                      Transaction ID: <span className="font-mono text-cyan-400 print:text-cyan-800 font-bold">{order.transactionId}</span>
-                    </p>
-                  )}
-                  {order.paymentScreenshotUrl && (
-                    <p className="text-slate-400 print:text-slate-600">
-                      Payment Screenshot: <span className="text-emerald-400 print:text-emerald-700 font-semibold">Uploaded &amp; Attached</span>
-                    </p>
-                  )}
-                  {order.paymentPhoneNumber && (
-                    <p className="text-slate-400 print:text-slate-600">
-                      Sender Phone: <span className="font-mono text-white print:text-slate-900">{order.paymentPhoneNumber}</span>
-                    </p>
-                  )}
-                  <p className="text-slate-400 print:text-slate-600">
-                    Payment Status: <span className="font-bold text-white print:text-slate-900">{order.paymentStatus}</span>
-                  </p>
-                </div>
-
-                <div className="space-y-2 text-xs">
-                  <div className="flex justify-between text-slate-400 print:text-slate-600">
-                    <span>Product Price (Subtotal)</span>
-                    <span className="font-mono text-white print:text-slate-900 font-bold">
-                      {currency}{order.subtotal.toLocaleString()}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-slate-400 print:text-slate-600">
-                    <span>Delivery Charge ({order.district})</span>
-                    <span className="font-mono text-white print:text-slate-900">
-                      {currency}{order.deliveryCharge.toLocaleString()}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-emerald-400 print:text-emerald-700">
-                    <span>Advance Paid ({order.paymentMethod.toUpperCase()})</span>
-                    <span className="font-mono font-bold">
-                      - {currency}{advancePaid.toLocaleString()}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-baseline pt-2 border-t border-slate-800 print:border-slate-300 text-base font-bold">
-                    <span className="text-amber-300 print:text-slate-900">Remaining COD Payable</span>
-                    <span className="font-mono text-xl text-amber-300 print:text-cyan-800">
-                      {currency}{codRemaining.toLocaleString()}
-                    </span>
-                  </div>
-                </div>
+            <div className="space-y-2 text-xs">
+              <div className="flex justify-between text-slate-400 print:text-slate-600">
+                <span>Subtotal</span>
+                <span className="font-mono text-white print:text-slate-900 font-bold">
+                  {currency}{order.subtotal.toLocaleString()}
+                </span>
               </div>
-            );
-          })()}
+              <div className="flex justify-between text-slate-400 print:text-slate-600">
+                <span>Delivery Charge ({order.district})</span>
+                <span className="font-mono text-white print:text-slate-900">
+                  {currency}{order.deliveryCharge.toLocaleString()}
+                </span>
+              </div>
+              <div className="flex justify-between items-baseline pt-2 border-t border-slate-800 print:border-slate-300 text-base font-bold">
+                <span className="text-white print:text-slate-900">Total Payable</span>
+                <span className="font-mono text-xl text-cyan-400 print:text-cyan-800">
+                  {currency}{order.total.toLocaleString()}
+                </span>
+              </div>
+            </div>
+          </div>
 
           {/* Footer note & Stamp */}
           <div className="pt-8 border-t border-slate-800 print:border-slate-300 flex flex-col sm:flex-row justify-between items-end gap-6 text-xs text-slate-400 print:text-slate-600">
